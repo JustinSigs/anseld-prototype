@@ -18,12 +18,15 @@ You must produce prophecies with TWO FACES each:
 - "tags": 3-5 lowercase single words naming the prophecy's subjects (used for contact detection).
 - "sealedSketch" (loose prophecies only): one sentence beginning "If neglected:" describing the careless, usually harmful way the world resolves it on its own.
 
-The PRIME prophecy is the run's win condition: a local authority or institution that "cannot end while X" until 3 conditions are met. Its conditions must require genuinely different kinds of work (public acts, physical acts, documents), each achievable but none trivial.
+The era has an ANTAGONIST: a forever-king-shaped figure in miniature — a local authority who holds the town and cannot be ended by ordinary means. Like Osric Vane himself, they cannot be possessed, cannot be reasoned into ending, and cannot be removed by force; only the prime prophecy ends them. Give them one local unexplained fact (their "nature") in the manner of the fifty-year ceiling: concrete, quiet, never explained.
+
+The PRIME prophecy is the run's win condition: the antagonist "cannot fall while X" until 3 conditions are met. Its conditions must require genuinely different kinds of work (public acts, physical acts, documents), each achievable but none trivial, and each must plausibly loosen the antagonist's grip.
 
 Respond with ONLY valid JSON, no code fences:
 {
   "townName": "...",
   "overview": "3-4 sentences: the town, its industry, its Assize presence, its open wound",
+  "antagonist": {"name": "...", "title": "the ... of <town>", "nature": "2 sentences: what they are, and the quiet unexplained fact that makes ordinary means useless"},
   "locations": [6 items: {"id": "kebab-case", "name": "...", "sealed": false, "description": "one line"} — EXACTLY ONE location has "sealed": true, a place no adult human fits or is permitted],
   "hosts": [8 humans: {"id": "kebab-case", "name": "...", "birthYear": n, "deathYear": n, "role": "...", "homeLocation": "a location id", "seed": "one line of situation/personality"} — every human alive for at least part of the era, deathYear at most birthYear+50, at least two dying DURING the era],
   "primePoetic": "the framing sentence of the prime prophecy",
@@ -34,6 +37,7 @@ Respond with ONLY valid JSON, no code fences:
 interface RawSheet {
   townName: string;
   overview: string;
+  antagonist?: { name: string; title: string; nature: string };
   locations: Array<{ id: string; name: string; sealed: boolean; description: string }>;
   hosts: Array<{ id: string; name: string; birthYear: number; deathYear: number; role: string; homeLocation: string; seed: string }>;
   primePoetic: string;
@@ -147,6 +151,11 @@ export function validateSheet(raw: RawSheet): EraSheet {
     eraStart: ERA_START,
     eraEnd: ERA_END,
     overview: raw.overview ?? '',
+    antagonist: {
+      name: raw.antagonist?.name ?? 'The Warden',
+      title: raw.antagonist?.title ?? `the Warden of ${raw.townName}`,
+      nature: raw.antagonist?.nature ?? 'The count keeps them, and no one remembers a time it did not.',
+    },
     locations,
     hosts: [...humans, ...animals],
     primePoetic: raw.primePoetic ?? '',

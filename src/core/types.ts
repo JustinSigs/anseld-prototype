@@ -145,11 +145,20 @@ export const DEFAULT_DIALS: Dials = {
 
 // ---------------- Era sheet (output of the run generator) ----------------
 
+/** The run's forever-king-shaped figure: the one the prime prophecy ends. */
+export interface Antagonist {
+  name: string;
+  title: string; // "the Salt-Warden of Saltmere"
+  /** What he is and why ordinary means cannot end him — the local unexplained fact. */
+  nature: string;
+}
+
 export interface EraSheet {
   townName: string;
   eraStart: number;
   eraEnd: number;
   overview: string; // storyteller-facing summary of the town and its tensions
+  antagonist: Antagonist;
   locations: Location[];
   hosts: Host[];
   /** Prime prophecy: the run's win. Its conditions are prophecies of kind 'prime'. */

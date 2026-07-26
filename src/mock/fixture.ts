@@ -10,6 +10,13 @@ export const FIXTURE_SHEET: EraSheet = {
   overview:
     'Saltmere, a piling-town on the Grey Lake, Years 60–75. One Assize office keeps the local Ledger. ' +
     'The salt-garden fails a little more each year and nobody will say why. The ferry runs short two crossings a week.',
+  antagonist: {
+    name: 'Halden Vosse',
+    title: 'the Salt-Warden of Saltmere',
+    nature:
+      'He has kept the count for thirty-one years and the count keeps him. His folio has no birth line. ' +
+      'Audits close around him like water; no discrepancy has ever been traced past his desk.',
+  },
   locations: [
     { id: 'assize-office', name: 'The Assize Office', roomArtId: 'room-office', sealed: false, description: 'Ledgers, ink, one high window.' },
     { id: 'ferry-dock', name: 'The Ferry Dock', roomArtId: 'room-dock', sealed: false, description: 'Pilings, rope, grey water.' },

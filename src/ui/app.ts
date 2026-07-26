@@ -89,11 +89,16 @@ function showBriefing(sheet: EraSheet) {
       <div class="modal-title">The Telling Opens — ${escapeHtml(sheet.townName)}, Years ${sheet.eraStart}–${sheet.eraEnd}</div>
       <div class="modal-body">
         <p>${escapeHtml(sheet.overview)}</p>
-        <div class="panel-head">Why you are here</div>
+        <div class="panel-head">The one you are here to end</div>
+        <p><b>${escapeHtml(sheet.antagonist.name)}</b>, ${escapeHtml(sheet.antagonist.title)}. ${escapeHtml(sheet.antagonist.nature)}</p>
+        <p class="brief-rule">They cannot be possessed. They cannot be reasoned with. They cannot be killed by force. Only the prophecy ends them.</p>
+        <div class="panel-head">The prime prophecy — the way they end</div>
         <p class="p-poetic">“${escapeHtml(sheet.primePoetic)}”</p>
-        <p>That is the prime prophecy — the run's win. Its conditions:</p>
         ${sheet.primeConditions.map((p) => `<p class="brief-cond">— <span class="p-poetic">“${escapeHtml(p.poetic)}”</span></p>`).join('')}
-        <p>Make all of them stand, in any order, by any means, and the Warden's count closes. ${sheet.looseProphecies.length} loose prophecies drift in this era besides — aim them or the world spends them without you.</p>
+        <p>Make all of them stand, in any order, by any means, and the count closes.</p>
+        <div class="panel-head">The loose prophecies — all will come true</div>
+        ${sheet.looseProphecies.map((p) => `<p class="brief-cond">— <span class="p-poetic">“${escapeHtml(p.poetic)}”</span></p>`).join('')}
+        <p>You control neither who, nor when, nor whether they help — unless you aim one. Left unaimed, the world spends them carelessly.</p>
         <div class="panel-head">How the telling works</div>
         <p class="brief-rule">— You are unbodied. The era grid on the right is the whole fifteen years: click any year of any living body to enter it. Fresh windows are free.</p>
         <p class="brief-rule">— Re-entering a moment you already lived, or a body you watched die, costs a <b>scar</b>. You are always warned first. Scars are the only way to lose.</p>
@@ -197,6 +202,8 @@ function showGame() {
   if (engine) {
     $('#town-body').innerHTML =
       `<p>${escapeHtml(engine.sheet.overview)}</p>` +
+      `<div class="panel-head">The one you are here to end</div>` +
+      `<p><b>${escapeHtml(engine.sheet.antagonist.name)}</b>, ${escapeHtml(engine.sheet.antagonist.title)}. ${escapeHtml(engine.sheet.antagonist.nature)}</p>` +
       `<div class="panel-head">Places</div>` +
       engine.sheet.locations
         .map((l) => `<div class="k-item">${escapeHtml(l.name)}${l.sealed ? ' — sealed (no human host passes)' : ''}<span class="dim"> · ${escapeHtml(l.description)}</span></div>`)

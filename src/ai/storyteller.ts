@@ -54,6 +54,7 @@ export class LiveStoryteller implements Storyteller {
 
     const user = [
       `TOWN: ${ctx.sheet.townName}. ${ctx.sheet.overview}`,
+      `THE ANTAGONIST: ${ctx.sheet.antagonist.name}, ${ctx.sheet.antagonist.title}. ${ctx.sheet.antagonist.nature} They cannot be possessed, cannot be reasoned into ending, cannot be removed by force. They never defend themselves — cheaper villains parry. Osric Vane's Assize stands behind them, distant but implied.`,
       `YEAR: ${ctx.year}.`,
       `HOST: ${ctx.host.name}, ${ctx.host.role}, born Year ${ctx.host.birthYear} (dies before ${ctx.host.deathYear + 1}; never state this). Species: ${ctx.host.species}. ${ctx.host.seed}${ctx.host.watched ? ' THIS HOST IS WATCHED by the Assize — actions may be reported.' : ''}`,
       `CURRENT LOCATION: ${ctx.locationId}.`,
