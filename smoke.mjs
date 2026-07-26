@@ -16,8 +16,11 @@ await page.goto('http://localhost:5173');
 await page.waitForSelector('text=ANSELD');
 await page.screenshot({ path: `${shots}/01-start.png` });
 
-// Start a mock run.
+// Start a mock run: briefing first, then the opening scene.
 await page.click('#start-mock');
+await page.waitForSelector('.modal.briefing');
+await page.screenshot({ path: `${shots}/01b-briefing.png` });
+await page.click('#brief-begin');
 await page.waitForSelector('#prose:not(:empty)', { timeout: 10000 });
 await page.screenshot({ path: `${shots}/02-opening.png`, fullPage: true });
 

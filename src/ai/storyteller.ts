@@ -76,7 +76,7 @@ export class LiveStoryteller implements Storyteller {
       ctx.directives.length > 0 ? `OSRIC DIRECTIVES:\n${ctx.directives.join('\n')}` : '',
       ctx.recentProse.length > 0 ? `PREVIOUS SCENE (for continuity of texture):\n${ctx.recentProse[ctx.recentProse.length - 1]}` : '',
       playerAction === null
-        ? `TASK: The player has just arrived in this host (the telling begins already inhabited — a waking, mid-motion, no hovering). Write the arrival scene and offer choices.`
+        ? `TASK: The player has just arrived in this host (the telling begins already inhabited — a waking, mid-motion, no hovering). Write the arrival scene. Ground the player: the host is mid-task in their ordinary work, and something small but wrong — one concrete thread of the town's open wound — is in front of them or freshly on their mind. At least one choice must point toward that thread; the others toward the host's own business. Never explain the game; show the town.`
         : `PLAYER ACTION: ${playerAction}\nTASK: Narrate what happens. File the fact report honestly.`,
     ]
       .filter(Boolean)

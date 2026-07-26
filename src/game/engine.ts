@@ -103,12 +103,16 @@ export class Engine {
     };
   }
 
+  /** The host the telling opens in, absent an explicit choice. */
+  static defaultStartingHost(sheet: EraSheet) {
+    return sheet.hosts.find((h) => h.species === 'human' && h.birthYear <= sheet.eraStart && h.deathYear >= sheet.eraStart);
+  }
+
   /** Begin the run: Law of Waking — the telling begins already inhabited. */
   async startRun(initialHostId?: string): Promise<TurnResult> {
     this.referee.record.append({ kind: 'run-started', year: this.sheet.eraStart });
     const host =
-      (initialHostId && this.referee.hostById(initialHostId)) ??
-      this.sheet.hosts.find((h) => h.species === 'human' && h.birthYear <= this.sheet.eraStart && h.deathYear >= this.sheet.eraStart);
+      (initialHostId && this.referee.hostById(initialHostId)) ?? Engine.defaultStartingHost(this.sheet);
     if (!host) throw new Error('No living human host at era start.');
     this.referee.record.append({ kind: 'possess', year: this.sheet.eraStart, hostId: host.id });
     this.locationId = host.homeLocation;

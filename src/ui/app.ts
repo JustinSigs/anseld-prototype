@@ -76,11 +76,43 @@ async function startNewRun(m: Mode) {
 
   engine = buildEngine(sheet, undefined);
   setStartStatus('');
-  showGame();
-  await guarded(async () => {
-    const result = await engine!.startRun();
-    applyResult(result);
-  });
+  showBriefing(sheet);
+}
+
+/** The Telling Opens — orientation before the first scene. */
+function showBriefing(sheet: EraSheet) {
+  const startHost = Engine.defaultStartingHost(sheet);
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+    <div class="modal briefing">
+      <div class="modal-title">The Telling Opens — ${escapeHtml(sheet.townName)}, Years ${sheet.eraStart}–${sheet.eraEnd}</div>
+      <div class="modal-body">
+        <p>${escapeHtml(sheet.overview)}</p>
+        <div class="panel-head">Why you are here</div>
+        <p class="p-poetic">“${escapeHtml(sheet.primePoetic)}”</p>
+        <p>That is the prime prophecy — the run's win. Its conditions:</p>
+        ${sheet.primeConditions.map((p) => `<p class="brief-cond">— <span class="p-poetic">“${escapeHtml(p.poetic)}”</span></p>`).join('')}
+        <p>Make all of them stand, in any order, by any means, and the Warden's count closes. ${sheet.looseProphecies.length} loose prophecies drift in this era besides — aim them or the world spends them without you.</p>
+        <div class="panel-head">How the telling works</div>
+        <p class="brief-rule">— You are unbodied. The era grid on the right is the whole fifteen years: click any year of any living body to enter it. Fresh windows are free.</p>
+        <p class="brief-rule">— Re-entering a moment you already lived, or a body you watched die, costs a <b>scar</b>. You are always warned first. Scars are the only way to lose.</p>
+        <p class="brief-rule">— What a host learns while you wear them is yours forever, in every body. The hosts keep nothing.</p>
+        <p class="brief-rule">— Speak plainly in the text box, or take a listed choice. The town answers.</p>
+        <div class="panel-head">You wake as</div>
+        <p><b>${escapeHtml(startHost?.name ?? '?')}</b> — ${escapeHtml(startHost?.role ?? '')}. ${escapeHtml(startHost?.seed ?? '')}</p>
+      </div>
+      <div class="modal-actions"><button id="brief-begin">Begin the telling</button></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  (overlay.querySelector('#brief-begin') as HTMLButtonElement).onclick = async () => {
+    overlay.remove();
+    showGame();
+    await guarded(async () => {
+      const result = await engine!.startRun();
+      applyResult(result);
+    });
+  };
 }
 
 function resumeRun() {
@@ -162,6 +194,14 @@ function showGame() {
   $('#start-screen').style.display = 'none';
   $('#game-screen').style.display = 'grid';
   $('#era-title').textContent = engine ? `${engine.sheet.townName}, Years ${engine.sheet.eraStart}–${engine.sheet.eraEnd}` : '';
+  if (engine) {
+    $('#town-body').innerHTML =
+      `<p>${escapeHtml(engine.sheet.overview)}</p>` +
+      `<div class="panel-head">Places</div>` +
+      engine.sheet.locations
+        .map((l) => `<div class="k-item">${escapeHtml(l.name)}${l.sealed ? ' — sealed (no human host passes)' : ''}<span class="dim"> · ${escapeHtml(l.description)}</span></div>`)
+        .join('');
+  }
   renderDesigner();
 }
 
@@ -653,6 +693,7 @@ const LAYOUT = `
     </section>
 
     <aside id="right">
+      <details class="panel"><summary>The town — what is known of it</summary><div id="town-body"></div></details>
       <div id="prophecies" class="panel"></div>
       <div class="panel">
         <div class="panel-head">The era — click a year to enter a body</div>
