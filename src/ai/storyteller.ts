@@ -27,12 +27,16 @@ Respond with ONLY valid JSON, no code fences:
   "foreclosed": "one short sentence naming what this action just made impossible (empty string if truly nothing)",
   "choices": [{"label": "3-4 concrete actions the host could take next, each under 10 words"}],
   "hostDied": {"cause": "..."} (ONLY if the host dies this scene — death must follow plausibly from the action),
-  "knowledgeGained": ["a discrete durable fact the player learned, if any"]
+  "knowledgeGained": ["a discrete durable fact the player learned, if any"],
+  "sealedFacts": [{"text": "...", "knownTo": ["names"]}] (REQUIRED whenever this scene introduces a mystery or an unexplained deliberate act: fix its hidden truth NOW — who did it, why — and name who in the era knows. A mystery with no committed answer is forbidden. Never reveal sealed truths in prose except through legitimate discovery.),
+  "ripplesOpened": ["one line per thread this scene leaves running — a scandal started, a person set on a course, a body unfound"]
 }
 
 Facts are the official record: list only things that verifiably happened in the scene, one entry per meaningful event. Tag honestly — tags are how the Ledger sees. Omitting an applicable tag is falsifying the record; adding an inapplicable one is the same.
 
-Mental acts are NEVER facts. A host recalling, wondering, noticing, deliberating, or the player considering their position produces NO fact entries and NO tags — thought leaves no mark in the Ledger. Only physical, witnessable events are facts.`;
+Mental acts are NEVER facts. A host recalling, wondering, noticing, deliberating, or the player considering their position produces NO fact entries and NO tags — thought leaves no mark in the Ledger. Only physical, witnessable events are facts.
+
+SEALED TRUTHS you will be given are the world's fixed hidden answers. Every scene must stay consistent with them. Characters who know a truth act like people keeping it; characters who don't, don't. You never contradict a sealed truth and never reveal one except through the player's legitimate discovery (and when revealed, report it as knowledgeGained).`;
 
 export class LiveStoryteller implements Storyteller {
   constructor(
@@ -46,6 +50,53 @@ export class LiveStoryteller implements Storyteller {
 
   async playTurn(ctx: SceneContext, playerAction: string): Promise<StorytellerTurn> {
     return this.call(ctx, playerAction);
+  }
+
+  async settle(params: { sheet: import('../core/types').EraSheet; state: import('../core/types').WorldState; fromYear: number; toYear: number }): Promise<import('../core/types').Settlement> {
+    const { sheet, state, fromYear, toYear } = params;
+    const raw = await this.client.completeJson<{
+      chronicle: string;
+      facts: Array<{ actor: string; action: string; target?: string; locationId: string; tags: string[] }>;
+      rippleResolutions: Array<{ rippleId: string; resolution: string }>;
+      sealedFacts?: Array<{ text: string; knownTo: string[] }>;
+    }>({
+      kind: 'storyteller',
+      model: this.model(),
+      system:
+        `You settle unobserved time in ANSELD. The player jumped from Year ${fromYear} to Year ${toYear}; nobody witnessed the gap. ` +
+        'Decide, soberly and plausibly, what those years did with the threads that were left running. Consequences follow from what stands on the record — no new dramas invented for excitement, no mercy either. People age; the fifty-year ceiling holds; unattended trouble compounds quietly. ' +
+        'Respond with ONLY valid JSON: {"chronicle": "3-6 spare sentences the player will read — what changed, told cold", "facts": [{"actor","action","target","locationId","tags":[]}] (the concrete outcomes, using known location ids), "rippleResolutions": [{"rippleId": "exact id given", "resolution": "one line"}] (resolve every open ripple whose thread would plausibly conclude in this gap; leave truly slow threads open), "sealedFacts": [{"text","knownTo":[]}] (only if the gap creates a new hidden truth)}',
+      user: [
+        `TOWN: ${sheet.townName}. ${sheet.overview}`,
+        `ANTAGONIST: ${sheet.antagonist.name}, ${sheet.antagonist.title}.`,
+        `LOCATION IDS: ${sheet.locations.map((l) => l.id).join(', ')}`,
+        `PEOPLE (with death years, never exceeded): ${sheet.hosts.map((h) => `${h.name} (dies ${h.deathYear})`).join('; ')}`,
+        `OPEN RIPPLES: ${state.ripples.map((r) => `[${r.id}] Y${r.year}: ${r.text}`).join(' | ') || 'none'}`,
+        `SEALED TRUTHS (stay consistent): ${state.sealedFacts.map((f) => f.text).join(' | ') || 'none'}`,
+        `RECENT COMMITTED FACTS: ${state.facts.slice(-15).map((f) => `${f.actor} ${f.action} @${f.locationId}`).join('; ') || 'none'}`,
+      ].join('\n\n'),
+      maxTokens: 1200,
+      summary: `settle years ${fromYear}–${toYear}`,
+    });
+
+    return {
+      chronicle: typeof raw.chronicle === 'string' ? raw.chronicle : '',
+      facts: (Array.isArray(raw.facts) ? raw.facts : []).map((f) => ({
+        actor: String(f.actor ?? 'the town'),
+        action: String(f.action ?? ''),
+        target: f.target ? String(f.target) : undefined,
+        locationId: sheet.locations.some((l) => l.id === f.locationId) ? f.locationId : sheet.locations[0].id,
+        tags: (Array.isArray(f.tags) ? f.tags : []).map((t) => String(t).toLowerCase()),
+      })),
+      rippleResolutions: (Array.isArray(raw.rippleResolutions) ? raw.rippleResolutions : []).map((r) => ({
+        rippleId: String(r.rippleId ?? ''),
+        resolution: String(r.resolution ?? ''),
+      })),
+      sealedFacts: (Array.isArray(raw.sealedFacts) ? raw.sealedFacts : []).map((s) => ({
+        text: String(s.text ?? ''),
+        knownTo: (Array.isArray(s.knownTo) ? s.knownTo : []).map(String),
+      })),
+    };
   }
 
   async answerQuestion(ctx: SceneContext, question: string): Promise<string> {
@@ -94,6 +145,14 @@ export class LiveStoryteller implements Storyteller {
       recentFacts.length > 0
         ? `RECENT COMMITTED FACTS: ${recentFacts.map((f) => `${f.actor} ${f.action}${f.target ? ' → ' + f.target : ''} @${f.locationId}`).join('; ')}`
         : 'RECENT COMMITTED FACTS: none — this is early in the telling.',
+      ctx.state.sealedFacts.length > 0
+        ? `SEALED TRUTHS (hidden from the player; never contradicted, never volunteered): ${ctx.state.sealedFacts
+            .map((f) => `${f.text} [known to: ${f.knownTo.join(', ') || 'no one living'}]`)
+            .join(' | ')}`
+        : '',
+      ctx.state.ripples.length > 0
+        ? `OPEN RIPPLES (threads left running, not yet settled): ${ctx.state.ripples.map((r) => `Y${r.year}: ${r.text}`).join(' | ')}`
+        : '',
       ctx.state.unwitnessed.length > 0
         ? `UNWITNESSED STRETCHES (overwritten time; the world is quietly wrong about these years): ${ctx.state.unwitnessed.map((u) => `${u.fromYear}–${u.toYear}`).join(', ')}`
         : '',
@@ -146,6 +205,10 @@ export function sanitizeTurn(turn: StorytellerTurn, ctx: SceneContext): Storytel
     choices,
     hostDied: turn.hostDied && typeof turn.hostDied.cause === 'string' ? { cause: turn.hostDied.cause } : undefined,
     knowledgeGained: (Array.isArray(turn.knowledgeGained) ? turn.knowledgeGained : []).map(String).filter((s) => s.trim()),
+    sealedFacts: (Array.isArray(turn.sealedFacts) ? turn.sealedFacts : [])
+      .filter((s) => s && typeof s.text === 'string' && s.text.trim())
+      .map((s) => ({ text: s.text, knownTo: (Array.isArray(s.knownTo) ? s.knownTo : []).map(String) })),
+    ripplesOpened: (Array.isArray(turn.ripplesOpened) ? turn.ripplesOpened : []).map(String).filter((s) => s.trim()),
   };
 }
 

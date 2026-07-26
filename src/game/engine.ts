@@ -7,7 +7,7 @@
 
 import { GameRecord } from '../core/record';
 import { Referee, type EntryClass } from '../core/referee';
-import type { Dials, EraSheet, Host, Prophecy, StorytellerTurn, WorldState } from '../core/types';
+import type { Dials, EraSheet, Host, Prophecy, Settlement, StorytellerTurn, WorldState } from '../core/types';
 
 export interface SceneContext {
   sheet: EraSheet;
@@ -33,6 +33,12 @@ export interface Storyteller {
    * costs nothing but the words. Questions are thought; commands are acts.
    */
   answerQuestion(ctx: SceneContext, question: string): Promise<string>;
+  /**
+   * Settle a forward gap in time: given the open ripples and the record,
+   * decide what the unobserved years did with what was left, as committed
+   * facts and a chronicle the player reads. The wake is not free.
+   */
+  settle(params: { sheet: EraSheet; state: WorldState; fromYear: number; toYear: number }): Promise<Settlement>;
 }
 
 export interface Clerk {
@@ -41,7 +47,7 @@ export interface Clerk {
 }
 
 export interface MarginNote {
-  kind: 'foreclosed' | 'prophecy-warned' | 'prophecy-decayed' | 'prophecy-fulfilled' | 'scar' | 'system';
+  kind: 'foreclosed' | 'prophecy-warned' | 'prophecy-decayed' | 'prophecy-fulfilled' | 'scar' | 'system' | 'settling' | 'ripple';
   text: string;
 }
 
@@ -117,10 +123,16 @@ export class Engine {
   /** Begin the run: Law of Waking — the telling begins already inhabited. */
   async startRun(initialHostId?: string): Promise<TurnResult> {
     this.referee.record.append({ kind: 'run-started', year: this.sheet.eraStart });
+    // The era's hidden truths go into the Record before anyone wakes:
+    // mysteries are born with answers.
+    for (const t of this.sheet.sealedTruths ?? []) {
+      this.referee.record.append({ kind: 'sealed-fact', text: t.text, knownTo: t.knownTo, source: 'generator' });
+    }
     const host =
       (initialHostId && this.referee.hostById(initialHostId)) ?? Engine.defaultStartingHost(this.sheet);
     if (!host) throw new Error('No living human host at era start.');
     this.referee.record.append({ kind: 'possess', year: this.sheet.eraStart, hostId: host.id });
+    this.referee.grantHostMemory(host.id);
     this.locationId = host.homeLocation;
 
     const turn = await this.storyteller.openScene(this.context());
@@ -211,6 +223,9 @@ export class Engine {
       }
     }
 
+    for (const r of turn.ripplesOpened ?? []) {
+      notes.push({ kind: 'ripple', text: `A thread left running: ${r}` });
+    }
     if (turn.foreclosed && turn.foreclosed.trim()) {
       notes.push({ kind: 'foreclosed', text: `Foreclosed: ${turn.foreclosed}` });
     }
@@ -241,16 +256,43 @@ export class Engine {
     if (entry.type === 'rewind-window' || entry.type === 'rewind-dead-host') {
       return { kind: 'needs-confirmation', entry, warning: entry.warning };
     }
-    this.referee.possessFresh(hostId, year);
+
+    // A forward jump reckons the gap first: the unobserved years settle what
+    // was left running, and the player reads the chronicle. The wake is not free.
+    const settleNotes: MarginNote[] = [];
+    const latest = this.referee.latestPlayedYear();
+    if (year > latest) {
+      const settlement = await this.storyteller.settle({
+        sheet: this.sheet,
+        state: this.state(),
+        fromYear: latest,
+        toYear: year,
+      });
+      this.referee.commitSettlement(latest, year, settlement);
+      if (settlement.chronicle.trim()) {
+        settleNotes.push({ kind: 'settling', text: `Years ${latest}–${year} settle: ${settlement.chronicle}` });
+      }
+      for (const res of settlement.rippleResolutions) {
+        settleNotes.push({ kind: 'ripple', text: `A thread closes: ${res.resolution}` });
+      }
+    }
+
+    const remembered = this.referee.possessFresh(hostId, year);
     const host = this.referee.hostById(hostId)!;
+    for (const k of remembered) {
+      settleNotes.push({ kind: 'system', text: `This body carries something: ${k}` });
+    }
     this.locationId = host.homeLocation;
     const turn = await this.storyteller.openScene(this.context());
-    return { kind: 'scene', result: await this.commitTurn('(arriving)', turn) };
+    const result = await this.commitTurn('(arriving)', turn);
+    result.notes.unshift(...settleNotes);
+    return { kind: 'scene', result };
   }
 
   /** The player was warned and chose the scar. */
   async confirmRewind(entry: Extract<EntryClass, { type: 'rewind-window' | 'rewind-dead-host' }>, hostId: string, year: number): Promise<TurnResult> {
     this.referee.executeRewind(entry, hostId, year);
+    this.referee.grantHostMemory(hostId);
     const host = this.referee.hostById(hostId)!;
     this.locationId = host.homeLocation;
     this.recentProse = [];

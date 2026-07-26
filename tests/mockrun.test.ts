@@ -11,7 +11,7 @@ function makeEngine(clerk = new MockClerk(), dials = { ...DEFAULT_DIALS }) {
 }
 
 describe('mock run — the core loop end to end', () => {
-  it('wakes inhabited, plays turns, warns and decays a prophecy on contact', async () => {
+  it('wakes inhabited, warns on contact, and decays only across years', async () => {
     const engine = makeEngine();
     const opening = await engine.startRun('dovan');
     expect(opening.prose).toContain('Dovan');
@@ -20,10 +20,41 @@ describe('mock run — the core loop end to end', () => {
     const t1 = await engine.act('Work the ferry crossing');
     expect(t1.notes.some((n) => n.kind === 'prophecy-warned')).toBe(true);
 
+    // Same year: the calendar protects it.
     const t2 = await engine.act('Work the ferry crossing');
-    expect(t2.notes.some((n) => n.kind === 'prophecy-decayed')).toBe(true);
-    const decayed = t2.state.prophecies.find((p) => p.id === 'loose-1')!;
-    expect(decayed.state).toBe('decayed');
+    expect(t2.notes.some((n) => n.kind === 'prophecy-decayed')).toBe(false);
+
+    // Next year: the world claims it.
+    const jump = await engine.requestJump('dovan', 61);
+    expect(jump.kind).toBe('scene');
+    const t3 = await engine.act('Work the ferry crossing');
+    expect(t3.notes.some((n) => n.kind === 'prophecy-decayed')).toBe(true);
+    expect(t3.state.prophecies.find((p) => p.id === 'loose-1')!.state).toBe('decayed');
+  });
+
+  it('forward jumps settle the gap: chronicle shown, ripples closed, body memories surface', async () => {
+    const engine = makeEngine();
+    await engine.startRun('merra');
+    await engine.act('Take stock of the room');
+
+    // Jump forward to Corb in 65: exiting Merra opens a ripple; the gap settles it.
+    const jump = await engine.requestJump('corb', 65);
+    expect(jump.kind).toBe('scene');
+    if (jump.kind !== 'scene') return;
+    const notes = jump.result.notes;
+    expect(notes.some((n) => n.kind === 'settling')).toBe(true);
+    // Corb carries a sealed truth (the hidden folio) — surfaced on possession.
+    expect(jump.result.state.knowledge.some((k) => k.includes('ninth evaporation pan'))).toBe(true);
+    // Note: the exit-ripple for Merra opened AFTER the settlement of the gap,
+    // so it remains open — visible in the ripple ledger, awaiting the next jump.
+    expect(jump.result.state.ripples.length).toBe(1);
+
+    const jump2 = await engine.requestJump('issa', 70);
+    expect(jump2.kind).toBe('scene');
+    if (jump2.kind !== 'scene') return;
+    expect(jump2.result.notes.some((n) => n.kind === 'ripple')).toBe(true);
+    // Merra's thread settled in this gap; Corb's opened fresh at the exit.
+    expect(jump2.result.state.ripples.length).toBe(1);
   });
 
   it('aimed prophecy routes to the clerk and fulfills; foreclosure notes appear', async () => {
@@ -114,9 +145,8 @@ describe('mock run — the core loop end to end', () => {
   });
 
   it('designer override can reset a decayed prophecy to unaimed', async () => {
-    const engine = makeEngine();
+    const engine = makeEngine(new MockClerk(), { ...DEFAULT_DIALS, contactsToDecay: 1 });
     await engine.startRun('dovan');
-    await engine.act('Work the ferry crossing');
     await engine.act('Work the ferry crossing');
     expect(engine.state().prophecies.find((p) => p.id === 'loose-1')!.state).toBe('decayed');
 

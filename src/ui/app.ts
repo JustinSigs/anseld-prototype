@@ -382,6 +382,17 @@ function renderKnowledge(knowledge: string[], unwitnessed: Array<{ fromYear: num
   for (const k of knowledge) {
     el.innerHTML += `<div class="k-item">${escapeHtml(k)}</div>`;
   }
+
+  // The Ripple Ledger — threads left running, visible like the campaign's R1/R2.
+  const ripples = engine!.state().ripples;
+  if (ripples.length > 0) {
+    el.innerHTML += `<div class="panel-head">Ripple ledger — unsettled threads</div>`;
+    for (const r of ripples) {
+      el.innerHTML += `<div class="k-item ripple">Y${r.year} · ${escapeHtml(r.text)}</div>`;
+    }
+    el.innerHTML += `<div class="dim">Threads settle — for better or worse — when you next jump forward in time.</div>`;
+  }
+
   if (unwitnessed.length > 0) {
     el.innerHTML += `<div class="panel-head">Unwitnessed time</div>`;
     for (const u of unwitnessed) {
@@ -412,6 +423,10 @@ function renderLedger() {
         case 'prophecy-fulfilled': text = `Prophecy ${e.prophecyId} fulfilled — ${e.ruling}`; break;
         case 'knowledge': text = `Learned: ${e.text}`; break;
         case 'prophecy-reset': text = `DESIGNER OVERRIDE — ${e.prophecyId} reset (${e.note}).`; break;
+        case 'sealed-fact': text = `A truth sealed into the record (${e.source}). Hidden.`; break;
+        case 'ripple-opened': text = `Ripple opened, Y${e.year}: ${e.text}`; break;
+        case 'ripple-closed': text = `Ripple settled: ${e.resolution}`; break;
+        case 'settling': text = `Years ${e.fromYear}–${e.toYear} settle. ${e.chronicle}`; break;
         case 'run-ended': text = `THE RUN ${e.outcome.toUpperCase()} — ${e.note}`; break;
       }
       return `<div class="l-row${unmade ? ' unmade' : ''}"><span class="l-seq">${e.seq}</span> ${escapeHtml(text)}</div>`;
@@ -534,6 +549,8 @@ function renderDesigner() {
     <label>Clerk model</label><input id="d-model-clerk" value="${dials.clerkModel}">
     <label>Generator model</label><input id="d-model-gen" value="${dials.generatorModel}">
     <label class="check"><input type="checkbox" id="d-reveal" ${revealHiddenFaces ? 'checked' : ''}> Reveal hidden faces & sealed sketches (designer eyes only)</label>
+    ${engine && revealHiddenFaces ? `<div class="panel-head">Sealed truths (the world's committed answers)</div>` +
+      (engine.state().sealedFacts.map((f) => `<div class="l-row">${escapeHtml(f.text)} <span class="dim">[known to: ${escapeHtml(f.knownTo.join(', ') || 'no one living')}]</span></div>`).join('') || '<div class="dim">None yet.</div>') : ''}
     ${engine ? `<div class="panel-head">Prophecy repair (playtest overrides — these write to the Ledger)</div>` +
       engine.state().prophecies
         .filter((p) => p.state !== 'unaimed')

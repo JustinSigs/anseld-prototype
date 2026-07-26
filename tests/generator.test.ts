@@ -55,6 +55,27 @@ describe('generated era validation', () => {
     expect(sheet.hosts.some((h) => h.species === 'raven')).toBe(true);
   });
 
+  it('strips tags shared between loose prophecies, and refuses a prophecy left tagless', () => {
+    const raw = structuredClone(rawBase);
+    raw.looseProphecies = [
+      { id: 'loose-1', poetic: 'l1', hiddenCondition: 'Fulfilled when: w', roles: [{ label: 'a' }], tags: ['quay', 'rope'], sealedSketch: 'If neglected: bad.' },
+      { id: 'loose-2', poetic: 'l2', hiddenCondition: 'Fulfilled when: x', roles: [{ label: 'b' }], tags: ['rope', 'bell'], sealedSketch: 'If neglected: worse.' },
+    ];
+    const sheet = validateSheet(raw);
+    expect(sheet.looseProphecies[1].tags).toEqual(['bell']); // 'rope' belonged to loose-1
+
+    raw.looseProphecies[1].tags = ['quay', 'rope']; // nothing unique left
+    expect(() => validateSheet(structuredClone(raw))).toThrow();
+  });
+
+  it('carries sealed truths through validation', () => {
+    const raw = structuredClone(rawBase) as typeof rawBase & { sealedTruths?: Array<{ text: string; knownTo: string[] }> };
+    raw.sealedTruths = [{ text: 'Ana forged the quay ledger.', knownTo: ['Ana'] }];
+    const sheet = validateSheet(raw);
+    expect(sheet.sealedTruths.length).toBe(1);
+    expect(sheet.sealedTruths[0].knownTo).toEqual(['Ana']);
+  });
+
   it('refuses an era without a full prime prophecy', () => {
     const raw = structuredClone(rawBase);
     raw.primeConditions = raw.primeConditions.slice(0, 2);

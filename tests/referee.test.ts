@@ -168,7 +168,7 @@ describe('scar tiers and their teeth', () => {
 });
 
 describe('prophecy machinery — sentences with blanks', () => {
-  it('first contact warns, second contact decays (default tempo)', () => {
+  it('contacts count once per year: warn in one year, decay only in another', () => {
     const ref = makeReferee();
     ref.possessFresh('dovan', 65);
 
@@ -178,9 +178,32 @@ describe('prophecy machinery — sentences with blanks', () => {
     expect(result.contacts[0].result).toBe('warned');
     expect(ref.state().prophecies.find((p) => p.id === 'loose-1')!.state).toBe('warned');
 
+    // Same year again: the calendar has not moved, so the prophecy does not.
     result = ref.ingestTurn({ year: 65, hostId: 'dovan', playerAction: 'cross again', turn: turnOf({ facts: [ferryFact] }) });
+    expect(result.contacts.length).toBe(0);
+    expect(ref.state().prophecies.find((p) => p.id === 'loose-1')!.state).toBe('warned');
+
+    // A different year: now it locks.
+    ref.possessFresh('dovan', 66);
+    result = ref.ingestTurn({ year: 66, hostId: 'dovan', playerAction: 'cross', turn: turnOf({ facts: [ferryFact] }) });
     expect(result.contacts[0].result).toBe('decayed');
     expect(ref.state().prophecies.find((p) => p.id === 'loose-1')!.state).toBe('decayed');
+  });
+
+  it('arrival scenes never brush prophecies — decay follows from what the player did', () => {
+    const ref = makeReferee();
+    ref.possessFresh('dovan', 65);
+    const ferryFact = { actor: 'Dovan Reed', action: 'was mid-crossing', locationId: 'ferry-dock', tags: ['ferry', 'crossing'] };
+    const result = ref.ingestTurn({ year: 65, hostId: 'dovan', playerAction: '(arriving)', turn: turnOf({ facts: [ferryFact] }) });
+    expect(result.contacts.length).toBe(0);
+  });
+
+  it("the world's own drama never burns a prophecy — only the worn host's acts count", () => {
+    const ref = makeReferee();
+    ref.possessFresh('merra', 62);
+    const worldFact = { actor: 'Someone', action: 'rang a bell across the lake', locationId: 'ferry-dock', tags: ['ferry', 'crossing'] };
+    const result = ref.ingestTurn({ year: 62, hostId: 'merra', playerAction: 'listen', turn: turnOf({ facts: [worldFact] }) });
+    expect(result.contacts.length).toBe(0);
   });
 
   it('decay tempo is a dial', () => {
@@ -247,6 +270,54 @@ describe('prophecy machinery — sentences with blanks', () => {
     ref.recordFulfillment('prime-3', 'the mark is his, the words are not');
     const s = ref.checkEnd();
     expect(s.outcome).toBe('won');
+  });
+});
+
+describe('sealed facts — mysteries born with answers', () => {
+  it('possessing a host yields what that body knows, once, permanently', () => {
+    const ref = makeReferee();
+    ref.record.append({ kind: 'sealed-fact', text: 'The Warden narrowed the brine feed.', knownTo: ['Dovan Reed'], source: 'generator' });
+
+    const gained = ref.possessFresh('dovan', 65);
+    expect(gained.length).toBe(1);
+    expect(ref.state().knowledge.some((k) => k.includes('brine feed'))).toBe(true);
+
+    // Re-entering grants nothing twice.
+    ref.possessFresh('merra', 66);
+    const again = ref.possessFresh('dovan', 67);
+    expect(again.length).toBe(0);
+  });
+
+  it('sealed facts are permanent ink — rewinds do not unmake truth', () => {
+    const ref = makeReferee();
+    ref.possessFresh('merra', 62);
+    ref.ingestTurn({
+      year: 62, hostId: 'merra', playerAction: 'pry',
+      turn: turnOf({ sealedFacts: [{ text: 'The rope was cut by the harbor clerk.', knownTo: [] }] }),
+    });
+    const entry = ref.classifyEntry('merra', 62);
+    if (entry.type === 'rewind-window') ref.executeRewind(entry, 'merra', 62);
+    expect(ref.state().sealedFacts.some((f) => f.text.includes('harbor clerk'))).toBe(true);
+  });
+});
+
+describe('ripples — the wake is not free', () => {
+  it('exiting a host opens a ripple; a settlement closes it into the record', () => {
+    const ref = makeReferee();
+    ref.possessFresh('merra', 62);
+    ref.ingestTurn({ year: 62, hostId: 'merra', playerAction: 'stir trouble', turn: turnOf({}) });
+    ref.possessFresh('dovan', 62); // exits merra → ripple opens
+    let s = ref.state();
+    expect(s.ripples.length).toBe(1);
+
+    ref.commitSettlement(62, 70, {
+      chronicle: 'Eight years pass. Merra kept counting; the town kept paying.',
+      facts: [{ actor: 'Merra Quill', action: 'was quietly reassigned', locationId: 'assize-office', tags: [] }],
+      rippleResolutions: [{ rippleId: s.ripples[0].id, resolution: 'Merra settled back into her count.' }],
+    });
+    s = ref.state();
+    expect(s.ripples.length).toBe(0);
+    expect(s.facts.some((f) => f.action.includes('reassigned'))).toBe(true);
   });
 });
 

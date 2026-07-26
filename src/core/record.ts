@@ -7,8 +7,9 @@
 
 import type { Dials, EraSheet, GameEvent, Prophecy, ScarTier, WorldState } from './types';
 
-/** Event kinds that survive a rewind untouched — the permanent ink. */
-const PERMANENT_KINDS = new Set(['scar', 'unwitnessed', 'knowledge', 'rewind', 'run-started', 'run-ended']);
+/** Event kinds that survive a rewind untouched — the permanent ink.
+ *  Sealed facts are truths about the world; rewinding your acts does not unmake truth. */
+const PERMANENT_KINDS = new Set(['scar', 'unwitnessed', 'knowledge', 'rewind', 'run-started', 'run-ended', 'sealed-fact']);
 
 export class GameRecord {
   private events: GameEvent[] = [];
@@ -121,6 +122,8 @@ export function deriveState(record: GameRecord, sheet: EraSheet, dials: Dials): 
     hosts: sheet.hosts.map((h) => ({ ...h, watched: false })),
     facts: [],
     knowledge: [],
+    sealedFacts: [],
+    ripples: [],
     unwitnessed: [],
     outcome: 'playing',
     outcomeNote: '',
@@ -142,6 +145,18 @@ export function deriveState(record: GameRecord, sheet: EraSheet, dials: Dials): 
         break;
       case 'knowledge':
         state.knowledge.push(e.text);
+        break;
+      case 'sealed-fact':
+        state.sealedFacts.push({ text: e.text, knownTo: e.knownTo });
+        break;
+      case 'ripple-opened':
+        if (!unmade) state.ripples.push({ id: e.rippleId, text: e.text, year: e.year });
+        break;
+      case 'ripple-closed':
+        if (!unmade) state.ripples = state.ripples.filter((r) => r.id !== e.rippleId);
+        break;
+      case 'settling':
+        if (!unmade) state.facts.push(...e.facts);
         break;
       case 'possess':
         if (!unmade) {

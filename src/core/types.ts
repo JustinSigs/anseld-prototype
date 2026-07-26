@@ -109,11 +109,20 @@ export type GameEvent =
     }
   | { kind: 'scar'; seq: number; year: number; note: string }
   | { kind: 'unwitnessed'; seq: number; fromYear: number; toYear: number }
-  | { kind: 'prophecy-contact'; seq: number; prophecyId: string; result: 'warned' | 'decayed'; unmade?: boolean }
+  | { kind: 'prophecy-contact'; seq: number; prophecyId: string; result: 'warned' | 'decayed'; year: number; unmade?: boolean }
   | { kind: 'prophecy-aimed'; seq: number; prophecyId: string; declaration: string; bindings: Record<string, string>; unmade?: boolean }
   | { kind: 'prophecy-fulfilled'; seq: number; prophecyId: string; ruling: string; unmade?: boolean }
   | { kind: 'knowledge'; seq: number; text: string } // survives rewinds — knowledge is the player's
   | { kind: 'prophecy-reset'; seq: number; prophecyId: string; note: string } // designer override, playtest repair only
+  // Sealed facts: the world's hidden truths, committed before the player finds them.
+  // Mysteries are born with answers. Permanent ink — rewinds do not unmake truth.
+  | { kind: 'sealed-fact'; seq: number; text: string; knownTo: string[]; source: 'generator' | 'storyteller' }
+  // Ripples: lives and threads left running. The exit is free; the wake is not.
+  | { kind: 'ripple-opened'; seq: number; rippleId: string; text: string; year: number; unmade?: boolean }
+  | { kind: 'ripple-closed'; seq: number; rippleId: string; resolution: string; unmade?: boolean }
+  // Settling: a forward time-jump reckons the gap — open ripples and idle years
+  // become committed facts and a chronicle the player reads.
+  | { kind: 'settling'; seq: number; fromYear: number; toYear: number; chronicle: string; facts: Fact[]; unmade?: boolean }
   | { kind: 'run-ended'; seq: number; outcome: 'won' | 'lost'; note: string };
 
 // ---------------- Designer dials ----------------
@@ -166,6 +175,8 @@ export interface EraSheet {
   primePoetic: string;
   primeConditions: Prophecy[];
   looseProphecies: Prophecy[];
+  /** The era's hidden truths, fixed at generation. Written to the Record at run start. */
+  sealedTruths: Array<{ text: string; knownTo: string[] }>;
 }
 
 // ---------------- Derived world state ----------------
@@ -181,6 +192,8 @@ export interface WorldState {
   hosts: Host[]; // with watched flags applied
   facts: Fact[]; // committed facts, in order (unmade excluded)
   knowledge: string[]; // survives rewinds
+  sealedFacts: Array<{ text: string; knownTo: string[] }>; // hidden truths (designer/storyteller eyes only)
+  ripples: Array<{ id: string; text: string; year: number }>; // open, unsettled threads
   unwitnessed: Array<{ fromYear: number; toYear: number }>;
   outcome: 'playing' | 'won' | 'lost';
   outcomeNote: string;
@@ -201,6 +214,21 @@ export interface StorytellerTurn {
   hostDied?: { cause: string };
   /** Optional: new knowledge the player gained (survives rewinds). */
   knowledgeGained?: string[];
+  /**
+   * Mysteries introduced this scene MUST be born with answers: the hidden
+   * truth, fixed now, and who in the era knows it. Never shown to the player.
+   */
+  sealedFacts?: Array<{ text: string; knownTo: string[] }>;
+  /** Threads this scene left running (a scandal started, a body unfound). */
+  ripplesOpened?: string[];
+}
+
+/** What a forward time-jump returns: the gap, reckoned. */
+export interface Settlement {
+  chronicle: string; // shown to the player — what the years did with what was left
+  facts: Fact[];
+  rippleResolutions: Array<{ rippleId: string; resolution: string }>;
+  sealedFacts?: Array<{ text: string; knownTo: string[] }>;
 }
 
 export interface ClerkRuling {

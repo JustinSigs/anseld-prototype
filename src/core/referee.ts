@@ -84,16 +84,77 @@ export class Referee {
     throw new Error('death anchor not found');
   }
 
-  /** Free movement: exit current host (free — the wake is not), jump, possess fresh. */
-  possessFresh(hostId: string, year: number): void {
+  /** Free movement: exit current host (free — the wake is not), jump, possess fresh.
+   *  Returns what the new body's memory yielded. */
+  possessFresh(hostId: string, year: number): string[] {
     const s = this.state();
     if (s.currentHostId) {
+      const left = this.hostById(s.currentHostId);
+      // The wake is not free: an exited host is a thread left running.
       this.record.append({ kind: 'exit-host', year: s.year, hostId: s.currentHostId });
+      this.record.append({
+        kind: 'ripple-opened',
+        rippleId: `r-exit-${s.currentHostId}-y${s.year}`,
+        text: `${left?.name ?? s.currentHostId} continues from Year ${s.year} as whoever you left them as, unsteered.`,
+        year: s.year,
+      });
     }
     if (year !== s.year) {
       this.record.append({ kind: 'jump', fromYear: s.year, toYear: year });
     }
     this.record.append({ kind: 'possess', year, hostId });
+    return this.grantHostMemory(hostId);
+  }
+
+  /** Knowledge is the player's; while worn, the body's secrets are readable.
+   *  Sealed facts known to this host become the player's knowledge, permanently. */
+  grantHostMemory(hostId: string): string[] {
+    const host = this.hostById(hostId);
+    if (!host) return [];
+    const s = this.state();
+    const gained: string[] = [];
+    for (const sf of s.sealedFacts) {
+      const knows = sf.knownTo.some(
+        (k) => k.toLowerCase() === host.name.toLowerCase() || k.toLowerCase() === host.id.toLowerCase(),
+      );
+      if (!knows) continue;
+      const asKnowledge = `${host.name} knows: ${sf.text}`;
+      if (!s.knowledge.includes(asKnowledge)) {
+        this.record.append({ kind: 'knowledge', text: asKnowledge });
+        gained.push(asKnowledge);
+      }
+    }
+    return gained;
+  }
+
+  /** Latest in-world year the telling has reached (live events only). */
+  latestPlayedYear(): number {
+    let max = this.sheet.eraStart;
+    for (const e of this.record.live()) {
+      if (e.kind === 'turn' || e.kind === 'possess') max = Math.max(max, e.year);
+      if (e.kind === 'settling') max = Math.max(max, e.toYear);
+    }
+    return max;
+  }
+
+  /** Commit a settlement: the gap's reckoning, ripple closures, new truths. */
+  commitSettlement(fromYear: number, toYear: number, settlement: import('./types').Settlement): void {
+    this.record.append({
+      kind: 'settling',
+      fromYear,
+      toYear,
+      chronicle: settlement.chronicle,
+      facts: settlement.facts,
+    });
+    const open = new Set(this.state().ripples.map((r) => r.id));
+    for (const res of settlement.rippleResolutions) {
+      if (open.has(res.rippleId)) {
+        this.record.append({ kind: 'ripple-closed', rippleId: res.rippleId, resolution: res.resolution });
+      }
+    }
+    for (const sf of settlement.sealedFacts ?? []) {
+      this.record.append({ kind: 'sealed-fact', text: sf.text, knownTo: sf.knownTo, source: 'storyteller' });
+    }
   }
 
   /**
@@ -146,14 +207,21 @@ export class Referee {
 
   /**
    * Commit a storyteller turn to the Record and run all mechanical consequences:
-   * knowledge, death, prophecy contacts (warn → decay per dial).
+   * knowledge, death, sealed facts, ripples, prophecy contacts (warn → decay per dial).
    * Returns prophecies that need a Clerk ruling (aimed/prime touched by facts).
+   *
+   * Decay follows from what the PLAYER did — the locked decision, now enforced
+   * three ways: contacts count only on player-initiated turns (never wakings or
+   * arrivals), only from facts whose actor is the worn host (the world's own
+   * drama never burns a prophecy), and at most once per prophecy per in-world
+   * year (tempo runs on the calendar, not the scene count).
    */
   ingestTurn(params: { year: number; hostId: string; playerAction: string; turn: StorytellerTurn }): {
     contacts: Array<{ prophecy: Prophecy; result: 'warned' | 'decayed' }>;
     clerkChecks: Prophecy[];
   } {
     const { year, hostId, playerAction, turn } = params;
+    const host = this.hostById(hostId);
 
     this.record.append({
       kind: 'turn',
@@ -171,23 +239,55 @@ export class Referee {
     if (turn.hostDied) {
       this.record.append({ kind: 'host-died', year, hostId, cause: turn.hostDied.cause });
     }
+    for (const sf of turn.sealedFacts ?? []) {
+      this.record.append({ kind: 'sealed-fact', text: sf.text, knownTo: sf.knownTo, source: 'storyteller' });
+    }
+    for (const [i, r] of (turn.ripplesOpened ?? []).entries()) {
+      this.record.append({
+        kind: 'ripple-opened',
+        rippleId: `r-${this.record.all().length}-${i}`,
+        text: r,
+        year,
+      });
+    }
 
-    const factTags = new Set(turn.facts.flatMap((f) => f.tags.map((t) => t.toLowerCase())));
+    const playerInitiated = !['(waking)', '(arriving)', '(returning)'].includes(playerAction);
+    const hostActorTags = new Set(
+      turn.facts
+        .filter((f) => {
+          const a = f.actor.toLowerCase();
+          return host !== undefined && (a === host.name.toLowerCase() || a === host.id.toLowerCase());
+        })
+        .flatMap((f) => f.tags.map((t) => t.toLowerCase())),
+    );
+    const allTags = new Set(turn.facts.flatMap((f) => f.tags.map((t) => t.toLowerCase())));
+
+    // Years in which each prophecy has already been contacted (live events).
+    const contactedYears = new Map<string, Set<number>>();
+    for (const e of this.record.live()) {
+      if (e.kind === 'prophecy-contact') {
+        if (!contactedYears.has(e.prophecyId)) contactedYears.set(e.prophecyId, new Set());
+        contactedYears.get(e.prophecyId)!.add(e.year);
+      }
+    }
+
     const s = this.state(); // includes the turn just committed
     const contacts: Array<{ prophecy: Prophecy; result: 'warned' | 'decayed' }> = [];
     const clerkChecks: Prophecy[] = [];
 
     for (const p of s.prophecies) {
-      const touched = p.tags.some((t) => factTags.has(t.toLowerCase()));
-      if (!touched) continue;
-
       if (p.kind === 'loose' && (p.state === 'unaimed' || p.state === 'warned')) {
-        // Decay on contact: warn first, lock at the dialed threshold.
+        if (!playerInitiated) continue;
+        const touched = p.tags.some((t) => hostActorTags.has(t.toLowerCase()));
+        if (!touched) continue;
+        if (contactedYears.get(p.id)?.has(year)) continue; // once per year
         const result = p.contacts + 1 >= this.dials.contactsToDecay ? 'decayed' : 'warned';
-        this.record.append({ kind: 'prophecy-contact', prophecyId: p.id, result });
+        this.record.append({ kind: 'prophecy-contact', prophecyId: p.id, result, year });
         contacts.push({ prophecy: p, result });
       } else if (p.state === 'aimed' || p.kind === 'prime') {
-        if (p.state !== 'fulfilled' && p.state !== 'spent' && p.state !== 'decayed') {
+        // Fulfillment checks are not rationed — the Clerk may look any time.
+        const touched = p.tags.some((t) => allTags.has(t.toLowerCase()));
+        if (touched && p.state !== 'fulfilled' && p.state !== 'spent' && p.state !== 'decayed') {
           clerkChecks.push(p);
         }
       }

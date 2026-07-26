@@ -123,6 +123,9 @@ main {
 .note-prophecy-decayed { border-color: var(--rust); color: #d8806a; }
 .note-prophecy-fulfilled { border-color: var(--good); color: #a4c294; }
 .note-scar { border-color: var(--rust); color: #d8806a; font-style: normal; }
+.note-settling { border-color: var(--salt, #cfc9b8); color: var(--text); font-style: normal; }
+.note-ripple { border-color: var(--lake); color: #90a8b4; }
+.k-item.ripple { color: #90a8b4; }
 
 #busy { color: var(--lamp); font-style: italic; margin: 10px 0; }
 

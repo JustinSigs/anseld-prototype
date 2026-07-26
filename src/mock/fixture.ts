@@ -33,6 +33,16 @@ export const FIXTURE_SHEET: EraSheet = {
     { id: 'raven-1', name: 'A ledger-raven', species: 'raven', birthYear: 55, deathYear: 95, role: 'Assize raven', homeLocation: 'assize-office', portraitId: 'face-raven', seed: 'Wears a numbered band. Nobody remembers banding it.', watched: false },
     { id: 'rat-1', name: 'A dock rat', species: 'rat', birthYear: 63, deathYear: 66, role: 'Rat', homeLocation: 'undervault', portraitId: 'face-rat', seed: 'Small enough for the spaces the Assize forgot to seal.', watched: false },
   ],
+  sealedTruths: [
+    {
+      text: 'The salt-garden fails because Halden Vosse ordered its brine feed narrowed in Year 58, to mask a shortfall in his tallies.',
+      knownTo: ['Dovan Reed'],
+    },
+    {
+      text: 'Corb Halloway once carried a folio whose sums the Warden rewrote; the original lies wrapped in oilcloth under the ninth evaporation pan.',
+      knownTo: ['Corb Halloway'],
+    },
+  ],
   primePoetic: 'The Warden of Saltmere cannot fall while his count is believed. Bring the town three things and he is done.',
   primeConditions: [
     {

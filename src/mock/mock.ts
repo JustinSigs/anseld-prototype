@@ -80,6 +80,24 @@ export class MockStoryteller implements Storyteller {
     };
   }
 
+  async settle(params: {
+    sheet: import('../core/types').EraSheet;
+    state: import('../core/types').WorldState;
+    fromYear: number;
+    toYear: number;
+  }): Promise<import('../core/types').Settlement> {
+    const { state, fromYear, toYear } = params;
+    return {
+      chronicle: `The years ${fromYear}–${toYear} pass without a witness. The salt keeps its schedule; the town keeps its debts.`,
+      facts: [],
+      rippleResolutions: state.ripples.map((r) => ({
+        rippleId: r.id,
+        resolution: `${r.text.split(' continues')[0]} settled into an ordinary life, unsteered.`,
+      })),
+      sealedFacts: [],
+    };
+  }
+
   async answerQuestion(ctx: SceneContext, _question: string): Promise<string> {
     if (ctx.knowledge.length === 0) return 'The record is silent. You know nothing yet that a body did not already know.';
     return `You turn what you hold over once, like a coin: ${ctx.knowledge.join(' ')}`;
