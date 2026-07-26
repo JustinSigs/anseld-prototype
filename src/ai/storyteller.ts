@@ -30,7 +30,9 @@ Respond with ONLY valid JSON, no code fences:
   "knowledgeGained": ["a discrete durable fact the player learned, if any"]
 }
 
-Facts are the official record: list only things that verifiably happened in the scene, one entry per meaningful event. Tag honestly — tags are how the Ledger sees. Omitting an applicable tag is falsifying the record; adding an inapplicable one is the same.`;
+Facts are the official record: list only things that verifiably happened in the scene, one entry per meaningful event. Tag honestly — tags are how the Ledger sees. Omitting an applicable tag is falsifying the record; adding an inapplicable one is the same.
+
+Mental acts are NEVER facts. A host recalling, wondering, noticing, deliberating, or the player considering their position produces NO fact entries and NO tags — thought leaves no mark in the Ledger. Only physical, witnessable events are facts.`;
 
 export class LiveStoryteller implements Storyteller {
   constructor(
@@ -44,6 +46,27 @@ export class LiveStoryteller implements Storyteller {
 
   async playTurn(ctx: SceneContext, playerAction: string): Promise<StorytellerTurn> {
     return this.call(ctx, playerAction);
+  }
+
+  async answerQuestion(ctx: SceneContext, question: string): Promise<string> {
+    const recentFacts = ctx.state.facts.slice(-20);
+    return this.client.complete({
+      kind: 'storyteller',
+      model: this.model(),
+      system:
+        'You are the continuous mind of the ANSELD player — an unbodied intelligence answering its own question. ' +
+        'Answer ONLY from the knowledge and committed facts provided. You may connect and reason across them, but invent nothing new about the world. ' +
+        'If the record is silent on the question, say so plainly — "the record is silent" is a complete answer. ' +
+        '60–140 words, plain text, no JSON, the same cold spare voice as the telling.',
+      user: [
+        `WHAT THE PLAYER KNOWS: ${ctx.knowledge.length > 0 ? ctx.knowledge.join(' | ') : 'nothing recorded yet'}`,
+        `COMMITTED FACTS: ${recentFacts.length > 0 ? recentFacts.map((f) => `${f.actor} ${f.action}${f.target ? ' → ' + f.target : ''} @${f.locationId}`).join('; ') : 'none'}`,
+        `CURRENT HOST: ${ctx.host.name}, ${ctx.host.role}, Year ${ctx.year}.`,
+        `THE QUESTION: ${question}`,
+      ].join('\n\n'),
+      maxTokens: 400,
+      summary: `recollection: ${question.slice(0, 60)}`,
+    });
   }
 
   private async call(ctx: SceneContext, playerAction: string | null): Promise<StorytellerTurn> {

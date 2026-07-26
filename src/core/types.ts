@@ -113,6 +113,7 @@ export type GameEvent =
   | { kind: 'prophecy-aimed'; seq: number; prophecyId: string; declaration: string; bindings: Record<string, string>; unmade?: boolean }
   | { kind: 'prophecy-fulfilled'; seq: number; prophecyId: string; ruling: string; unmade?: boolean }
   | { kind: 'knowledge'; seq: number; text: string } // survives rewinds — knowledge is the player's
+  | { kind: 'prophecy-reset'; seq: number; prophecyId: string; note: string } // designer override, playtest repair only
   | { kind: 'run-ended'; seq: number; outcome: 'won' | 'lost'; note: string };
 
 // ---------------- Designer dials ----------------

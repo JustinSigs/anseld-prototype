@@ -217,6 +217,11 @@ export class Referee {
     this.record.append({ kind: 'prophecy-fulfilled', prophecyId, ruling });
   }
 
+  /** Designer override: return a prophecy to its birth state. Playtest repair, not play. */
+  resetProphecy(prophecyId: string, note: string): void {
+    this.record.append({ kind: 'prophecy-reset', prophecyId, note });
+  }
+
   /** After any mutation: if the run just ended, write it into the Ledger once. */
   checkEnd(): WorldState {
     const s = this.state();

@@ -80,6 +80,11 @@ export class MockStoryteller implements Storyteller {
     };
   }
 
+  async answerQuestion(ctx: SceneContext, _question: string): Promise<string> {
+    if (ctx.knowledge.length === 0) return 'The record is silent. You know nothing yet that a body did not already know.';
+    return `You turn what you hold over once, like a coin: ${ctx.knowledge.join(' ')}`;
+  }
+
   private locName(ctx: SceneContext, id: string): string {
     return ctx.sheet.locations.find((l) => l.id === id)?.name ?? id;
   }

@@ -97,6 +97,37 @@ describe('mock run — the core loop end to end', () => {
     expect(s.outcome).toBe('won');
   });
 
+  it('questions are thought: consider() files no facts and brushes no prophecies', async () => {
+    const engine = makeEngine();
+    await engine.startRun('dovan');
+    const before = engine.state();
+
+    const result = await engine.consider('What do I know about the drowned children?');
+    expect(result.prose.length).toBeGreaterThan(0);
+
+    const after = engine.state();
+    expect(after.facts.length).toBe(before.facts.length);
+    expect(after.prophecies.every((p) => p.contacts === 0)).toBe(true);
+    expect(engine.referee.record.all().filter((e) => e.kind === 'turn').length).toBe(
+      1, // only the opening scene
+    );
+  });
+
+  it('designer override can reset a decayed prophecy to unaimed', async () => {
+    const engine = makeEngine();
+    await engine.startRun('dovan');
+    await engine.act('Work the ferry crossing');
+    await engine.act('Work the ferry crossing');
+    expect(engine.state().prophecies.find((p) => p.id === 'loose-1')!.state).toBe('decayed');
+
+    engine.referee.resetProphecy('loose-1', 'playtest repair');
+    const p = engine.state().prophecies.find((x) => x.id === 'loose-1')!;
+    expect(p.state).toBe('unaimed');
+    expect(p.contacts).toBe(0);
+    // The override itself is on the Ledger, not hidden.
+    expect(engine.referee.record.all().some((e) => e.kind === 'prophecy-reset')).toBe(true);
+  });
+
   it('free movement is free: fresh windows cost nothing', async () => {
     const engine = makeEngine();
     await engine.startRun('merra');

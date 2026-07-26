@@ -27,6 +27,12 @@ export interface Storyteller {
   /** First scene after arriving in a host (Law of Waking: begin inhabited). */
   openScene(ctx: SceneContext): Promise<StorytellerTurn>;
   playTurn(ctx: SceneContext, playerAction: string): Promise<StorytellerTurn>;
+  /**
+   * Recollection: the player asking their own continuous mind, not the world.
+   * Answers from the record only. Files no facts, brushes no prophecies,
+   * costs nothing but the words. Questions are thought; commands are acts.
+   */
+  answerQuestion(ctx: SceneContext, question: string): Promise<string>;
 }
 
 export interface Clerk {
@@ -119,6 +125,20 @@ export class Engine {
 
     const turn = await this.storyteller.openScene(this.context());
     return this.commitTurn('(waking)', turn);
+  }
+
+  /** A question asked of the self: no turn, no facts, no contacts, no cost but words. */
+  async consider(question: string): Promise<TurnResult> {
+    const state = this.state();
+    if (state.outcome !== 'playing') return this.endedResult(state);
+    if (!this.currentHost()) throw new Error('No host.');
+    const prose = await this.storyteller.answerQuestion(this.context(), question);
+    return {
+      prose,
+      choices: this.lastChoices,
+      notes: [{ kind: 'system', text: 'A recollection. Nothing happened; nothing was brushed. Questions are thought — commands are acts.' }],
+      state,
+    };
   }
 
   /** Play one turn: a clicked choice or a free-text action. */

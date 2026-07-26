@@ -204,6 +204,20 @@ export function deriveState(record: GameRecord, sheet: EraSheet, dials: Dials): 
         p.state = 'fulfilled';
         break;
       }
+      case 'prophecy-reset': {
+        // Designer override: return the prophecy to its birth state.
+        if (unmade) break;
+        const p = byId.get(e.prophecyId);
+        if (!p) break;
+        p.state = 'unaimed';
+        p.contacts = 0;
+        p.aimDeclaration = null;
+        for (const role of p.roles) {
+          role.boundTo = null;
+          role.penciled = false;
+        }
+        break;
+      }
       case 'run-ended':
         state.outcome = e.outcome === 'won' ? 'won' : 'lost';
         state.outcomeNote = e.note;

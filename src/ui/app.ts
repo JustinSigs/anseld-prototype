@@ -103,7 +103,7 @@ function showBriefing(sheet: EraSheet) {
         <p class="brief-rule">— You are unbodied. The era grid on the right is the whole fifteen years: click any year of any living body to enter it. Fresh windows are free.</p>
         <p class="brief-rule">— Re-entering a moment you already lived, or a body you watched die, costs a <b>scar</b>. You are always warned first. Scars are the only way to lose.</p>
         <p class="brief-rule">— What a host learns while you wear them is yours forever, in every body. The hosts keep nothing.</p>
-        <p class="brief-rule">— Speak plainly in the text box, or take a listed choice. The town answers.</p>
+        <p class="brief-rule">— Speak plainly in the text box, or take a listed choice. The town answers. Questions ("what do I know about…") are thought — free, private, and they touch nothing. Commands are acts, and acts leave marks.</p>
         <div class="panel-head">You wake as</div>
         <p><b>${escapeHtml(startHost?.name ?? '?')}</b> — ${escapeHtml(startHost?.role ?? '')}. ${escapeHtml(startHost?.seed ?? '')}</p>
       </div>
@@ -411,6 +411,7 @@ function renderLedger() {
         case 'prophecy-aimed': text = `Prophecy ${e.prophecyId} aimed: ${e.declaration}`; break;
         case 'prophecy-fulfilled': text = `Prophecy ${e.prophecyId} fulfilled — ${e.ruling}`; break;
         case 'knowledge': text = `Learned: ${e.text}`; break;
+        case 'prophecy-reset': text = `DESIGNER OVERRIDE — ${e.prophecyId} reset (${e.note}).`; break;
         case 'run-ended': text = `THE RUN ${e.outcome.toUpperCase()} — ${e.note}`; break;
       }
       return `<div class="l-row${unmade ? ' unmade' : ''}"><span class="l-seq">${e.seq}</span> ${escapeHtml(text)}</div>`;
@@ -533,6 +534,11 @@ function renderDesigner() {
     <label>Clerk model</label><input id="d-model-clerk" value="${dials.clerkModel}">
     <label>Generator model</label><input id="d-model-gen" value="${dials.generatorModel}">
     <label class="check"><input type="checkbox" id="d-reveal" ${revealHiddenFaces ? 'checked' : ''}> Reveal hidden faces & sealed sketches (designer eyes only)</label>
+    ${engine ? `<div class="panel-head">Prophecy repair (playtest overrides — these write to the Ledger)</div>` +
+      engine.state().prophecies
+        .filter((p) => p.state !== 'unaimed')
+        .map((p) => `<div class="l-row">${escapeHtml(p.id)} — ${p.state} <button class="d-reset" data-p="${p.id}">reset to unaimed</button></div>`)
+        .join('') : ''}
     <button id="d-apply">Apply dials</button>
     <button id="d-export">Copy save to clipboard</button>
     <button id="d-abandon" class="danger-btn">Abandon run</button>
@@ -547,6 +553,17 @@ function renderDesigner() {
     }
     addNote('system', 'Dials applied.');
   };
+  el.querySelectorAll('.d-reset').forEach((btn) => {
+    (btn as HTMLButtonElement).onclick = () => {
+      const id = (btn as HTMLElement).dataset.p!;
+      engine!.referee.resetProphecy(id, 'designer override');
+      addNote('system', `Designer override: ${id} reset to unaimed. The override is on the Ledger.`);
+      renderProphecies(engine!.state().prophecies);
+      renderLedger();
+      renderDesigner();
+      persist();
+    };
+  });
   (document.getElementById('d-reveal') as HTMLInputElement).onchange = (e) => {
     revealHiddenFaces = (e.target as HTMLInputElement).checked;
     if (engine) renderProphecies(engine.state().prophecies);
@@ -648,12 +665,24 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.target as HTMLElement).id === 'free-text') submitFreeText();
 });
 
+/** Questions are thought; commands are acts. Thought is free and touches nothing. */
+function looksLikeQuestion(v: string): boolean {
+  return /^(what|who|whom|where|when|why|how|did|do|does|have|has|had|am|is|are|was|were|can|could|should|would)\b/i.test(v) || v.endsWith('?');
+}
+
 function submitFreeText() {
   const input = document.getElementById('free-text') as HTMLInputElement | null;
   if (!input || input.disabled) return;
   const v = input.value.trim();
   if (!v) return;
   input.value = '';
+  if (looksLikeQuestion(v)) {
+    void guarded(async () => {
+      const result = await engine!.consider(v);
+      renderAll(result); // no persist: a thought is not a page
+    });
+    return;
+  }
   act(v);
 }
 
@@ -694,7 +723,7 @@ const LAYOUT = `
       <div id="busy" style="display:none">the ink is drying…</div>
       <div id="choices"></div>
       <div id="free-row">
-        <input id="free-text" placeholder="or do something else — say it plainly">
+        <input id="free-text" placeholder="or do something else — commands act, questions only recall">
         <button id="free-send">Do it</button>
       </div>
     </section>
