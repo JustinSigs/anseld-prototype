@@ -115,3 +115,18 @@ The original's Section 7 asked that certain working things be protected. Their f
 - **Missing pages as one pattern** — the Ledger view shows every unmade page, struck through, numbered, never erased. The player can read their own scar tissue.
 - **Convergence over convenience** — load-bearing facts are pre-committed at generation; the storyteller physically cannot hand the player a convenient object it invented mid-scene, because objects it invents carry no record weight until the Referee commits them as facts.
 - **The warmth mechanic and Osric not flinching** — campaign canon, not prototype systems; untouched, awaiting the real game.
+
+---
+
+## 6. MOVEMENT LOG
+
+A running, dated record of what was decided, built, and learned. Append-only, in the Ledger's spirit. Every working session adds its entries.
+
+### 2026-07-26 — design finalized, prototype built, first playtests
+- **Decided:** all twelve of the original §8 items ruled (see §1); code referees / AI narrates; scars as single currency; scar cap as only loss; prophecies as sentences-with-blanks with two faces; per-run generation; face-up setup mirroring the original prompt.
+- **Built:** full prototype at `C:\Dev\anseld-prototype` — Record/Referee core, mock + live modes, pixel placeholder art, era grid, briefing, designer dial panel, save/resume. 26→37 automated tests across the day.
+- **Learned (playtest 1, Sessmere):** asking yourself a question was treated as a world-act and burned two prophecies → ruled *questions are thought, commands are acts*; recollection mode built; designer prophecy-repair override added (visible on the Ledger).
+- **Learned (Sessmere log post-mortem):** all three loose prophecies were warned by the opening scene, before any input — the generator had put "causeway" on all three, the arrival directive seats the player at the wound, and the storyteller's own invented drama (the bell) decayed prophecies. Root cause: incidental and meaningful contact were the same thing.
+- **Decided (engagement definition, verbatim intent):** figuring out how to enact the prophecy; manipulating the past to affect the future; inhabiting people and creatures; seeing outputs ripple through time. Bar: fair machine — drama pre-committed, then discovered.
+- **Built (affordance systems):** decay redefined (player-initiated, host-actor, once per prophecy per year, no shared loose tags); sealed facts — mysteries born with answers, permanent ink, knownTo attribution; host memory on possession; ripples + settling on forward jumps with a visible Ripple Ledger; possession by description with on-demand host instantiation and the Oracle Rule.
+- **Watching:** settling quality vs cost (open question 10); roster bloat from described hosts (11); question/command heuristic (12); rewind-can-unaim-an-aim (1); scar tier tuning — the dials' whole purpose (2, 3).
