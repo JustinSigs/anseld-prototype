@@ -130,3 +130,6 @@ A running, dated record of what was decided, built, and learned. Append-only, in
 - **Decided (engagement definition, verbatim intent):** figuring out how to enact the prophecy; manipulating the past to affect the future; inhabiting people and creatures; seeing outputs ripple through time. Bar: fair machine — drama pre-committed, then discovered.
 - **Built (affordance systems):** decay redefined (player-initiated, host-actor, once per prophecy per year, no shared loose tags); sealed facts — mysteries born with answers, permanent ink, knownTo attribution; host memory on possession; ripples + settling on forward jumps with a visible Ripple Ledger; possession by description with on-demand host instantiation and the Oracle Rule.
 - **Watching:** settling quality vs cost (open question 10); roster bloat from described hosts (11); question/command heuristic (12); rewind-can-unaim-an-aim (1); scar tier tuning — the dials' whole purpose (2, 3).
+
+### 2026-07-26 (later) — shared
+- **Deployed:** public repository `github.com/JustinSigs/anseld-prototype`; playable build at `https://justinsigs.github.io/anseld-prototype/`. Mock mode is free for anyone; live runs require the player's own API key, pasted on the start screen and stored only in their browser. Redeploy: `npm run build:pages`, copy `dist` onto the `gh-pages` branch, push.
