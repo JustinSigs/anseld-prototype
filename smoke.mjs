@@ -24,11 +24,14 @@ await page.click('#brief-begin');
 await page.waitForSelector('#prose:not(:empty)', { timeout: 10000 });
 await page.screenshot({ path: `${shots}/02-opening.png`, fullPage: true });
 
-// Play: ferry crossing twice → warn then decay.
+// Play: ferry crossing warns; a second crossing NEXT YEAR decays (calendar rule).
 await page.click('button.choice:has-text("ferry")');
 await page.waitForSelector('.note-prophecy-warned', { timeout: 5000 });
 await page.screenshot({ path: `${shots}/03-warned.png`, fullPage: true });
 
+// Jump forward a year — this also exercises settling (chronicle note).
+await page.click('td.g-cell.alive[data-host="merra"][data-year="61"]');
+await page.waitForSelector('.note-settling', { timeout: 5000 });
 await page.click('button.choice:has-text("ferry")');
 await page.waitForSelector('.note-prophecy-decayed', { timeout: 5000 });
 await page.screenshot({ path: `${shots}/04-decayed.png`, fullPage: true });

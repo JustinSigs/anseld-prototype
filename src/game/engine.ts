@@ -41,6 +41,27 @@ export interface Storyteller {
   settle(params: { sheet: EraSheet; state: WorldState; fromYear: number; toYear: number }): Promise<Settlement>;
 }
 
+/** Result of resolving a possession-by-description request. */
+export type ResolvedPossession =
+  | { kind: 'existing'; hostId: string; year: number; reasoning: string }
+  | {
+      kind: 'new';
+      year: number;
+      reasoning: string;
+      host: { name: string; species: 'human' | 'raven' | 'rat'; birthYear: number; deathYear: number; role: string; homeLocation: string; seed: string };
+    }
+  | { kind: 'refused'; reason: string };
+
+export interface PossessionResolver {
+  /**
+   * Turn a described body ("the raker nearest the chapel at noon, Year 63")
+   * into a concrete host — existing or newly instantiated. THE ORACLE RULE:
+   * a description resolvable only by revealing a sealed truth the player has
+   * not learned must be refused. Flesh is found by what you know.
+   */
+  resolve(params: { sheet: EraSheet; state: WorldState; description: string; currentYear: number }): Promise<ResolvedPossession>;
+}
+
 export interface Clerk {
   /** Blind ruling: does the record satisfy this prophecy's hidden face? */
   rule(prophecy: Prophecy, recordExcerpt: string): Promise<{ fulfilled: boolean; reasoning: string }>;
@@ -70,6 +91,7 @@ export class Engine {
     private storyteller: Storyteller,
     private clerk: Clerk,
     record?: GameRecord,
+    private resolver?: PossessionResolver,
   ) {
     this.referee = new Referee(record ?? new GameRecord(), sheet, dials);
     this.locationId = sheet.locations[0].id;
@@ -287,6 +309,67 @@ export class Engine {
     const result = await this.commitTurn('(arriving)', turn);
     result.notes.unshift(...settleNotes);
     return { kind: 'scene', result };
+  }
+
+  /**
+   * "Be anyone": possession by description. Resolves to an existing host or
+   * instantiates a new one (referee-validated), then runs the normal entry
+   * flow — including rewind warnings if the described window is priced.
+   */
+  async requestJumpByDescription(description: string): Promise<
+    | { kind: 'scene'; result: TurnResult; reasoning: string }
+    | { kind: 'needs-confirmation'; entry: EntryClass; warning: string; hostId: string; year: number; reasoning: string }
+    | { kind: 'refused'; reason: string }
+  > {
+    if (!this.resolver) return { kind: 'refused', reason: 'This telling cannot find bodies by description (mock mode knows only its named people).' };
+    const state = this.state();
+    const resolved = await this.resolver.resolve({
+      sheet: this.sheet,
+      state,
+      description,
+      currentYear: state.year,
+    });
+    if (resolved.kind === 'refused') return { kind: 'refused', reason: resolved.reason };
+
+    let hostId: string;
+    if (resolved.kind === 'new') {
+      hostId = this.instantiateHost(resolved.host);
+    } else {
+      hostId = resolved.hostId;
+      if (!this.referee.hostById(hostId)) return { kind: 'refused', reason: 'The described body could not be found in this era.' };
+    }
+
+    const year = Math.max(this.sheet.eraStart, Math.min(this.sheet.eraEnd, Math.round(resolved.year)));
+    const jump = await this.requestJump(hostId, year);
+    if (jump.kind === 'refused') return jump;
+    if (jump.kind === 'needs-confirmation') return { ...jump, hostId, year, reasoning: resolved.reasoning };
+    return { ...jump, reasoning: resolved.reasoning };
+  }
+
+  /** The Referee's intake for described bodies: the ceiling is law here too. */
+  private instantiateHost(spec: { name: string; species: 'human' | 'raven' | 'rat'; birthYear: number; deathYear: number; role: string; homeLocation: string; seed: string }): string {
+    const maxSpan = spec.species === 'human' ? 50 : spec.species === 'raven' ? 40 : 3;
+    const birthYear = Math.min(this.sheet.eraEnd, Math.round(spec.birthYear));
+    const deathYear = Math.max(birthYear + 1, Math.min(Math.round(spec.deathYear), birthYear + maxSpan));
+    const baseId = spec.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'stranger';
+    let id = baseId;
+    let n = 2;
+    while (this.referee.hostById(id)) id = `${baseId}-${n++}`;
+    const humanCount = this.sheet.hosts.filter((h) => h.species === 'human').length;
+
+    this.sheet.hosts.push({
+      id,
+      name: spec.name,
+      species: spec.species,
+      birthYear,
+      deathYear,
+      role: spec.role,
+      homeLocation: this.sheet.locations.some((l) => l.id === spec.homeLocation) ? spec.homeLocation : this.sheet.locations[0].id,
+      portraitId: spec.species === 'raven' ? 'face-raven' : spec.species === 'rat' ? 'face-rat' : `face-${(humanCount % 12) + 1}`,
+      seed: spec.seed,
+      watched: false,
+    });
+    return id;
   }
 
   /** The player was warned and chose the scar. */

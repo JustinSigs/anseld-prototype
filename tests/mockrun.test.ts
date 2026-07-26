@@ -3,11 +3,12 @@
 import { describe, it, expect } from 'vitest';
 import { Engine } from '../src/game/engine';
 import { MockClerk, MockStoryteller } from '../src/mock/mock';
+import { MockResolver } from '../src/ai/resolver';
 import { DEFAULT_DIALS } from '../src/core/types';
 import { FIXTURE_SHEET } from '../src/mock/fixture';
 
 function makeEngine(clerk = new MockClerk(), dials = { ...DEFAULT_DIALS }) {
-  return new Engine(FIXTURE_SHEET, dials, new MockStoryteller(), clerk);
+  return new Engine(FIXTURE_SHEET, dials, new MockStoryteller(), clerk, undefined, new MockResolver());
 }
 
 describe('mock run — the core loop end to end', () => {
@@ -156,6 +157,18 @@ describe('mock run — the core loop end to end', () => {
     expect(p.contacts).toBe(0);
     // The override itself is on the Ledger, not hidden.
     expect(engine.referee.record.all().some((e) => e.kind === 'prophecy-reset')).toBe(true);
+  });
+
+  it('possession by description resolves named people (mock) and refuses strangers', async () => {
+    const engine = makeEngine();
+    await engine.startRun('merra');
+    const res = await engine.requestJumpByDescription('enter the Ferryman');
+    expect(res.kind).toBe('scene');
+    if (res.kind !== 'scene') return;
+    expect(res.result.state.currentHostId).toBe('dovan');
+
+    const refused = await engine.requestJumpByDescription('whoever cut the rope');
+    expect(refused.kind).toBe('refused');
   });
 
   it('free movement is free: fresh windows cost nothing', async () => {

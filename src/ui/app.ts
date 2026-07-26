@@ -9,6 +9,7 @@ import { MockClerk, MockStoryteller } from '../mock/mock';
 import { FIXTURE_SHEET } from '../mock/fixture';
 import { ClaudeClient } from '../ai/client';
 import { LiveClerk, LiveStoryteller } from '../ai/storyteller';
+import { LiveResolver, MockResolver } from '../ai/resolver';
 import { generateEraSheet } from '../ai/generator';
 import { DEFAULT_DIALS, type Dials, type EraSheet, type Prophecy } from '../core/types';
 import { renderScene, drawPortrait, SCENE_W, SCENE_H } from './art';
@@ -147,9 +148,10 @@ function buildEngine(sheet: EraSheet, record: GameRecord | undefined): Engine {
       new LiveStoryteller(client, () => dials.storytellerModel),
       new LiveClerk(client, () => dials.clerkModel),
       record,
+      new LiveResolver(client, () => dials.clerkModel),
     );
   }
-  return new Engine(sheet, dials, new MockStoryteller(), new MockClerk(), record);
+  return new Engine(sheet, dials, new MockStoryteller(), new MockClerk(), record, new MockResolver());
 }
 
 function persist() {
@@ -677,10 +679,47 @@ function escapeHtml(s: string): string {
 // Free text wiring (attached once the layout exists).
 document.addEventListener('click', (e) => {
   if ((e.target as HTMLElement).id === 'free-send') submitFreeText();
+  if ((e.target as HTMLElement).id === 'describe-go') submitDescribe();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.target as HTMLElement).id === 'free-text') submitFreeText();
+  if (e.key === 'Enter' && (e.target as HTMLElement).id === 'describe-text') submitDescribe();
 });
+
+function submitDescribe() {
+  const input = document.getElementById('describe-text') as HTMLInputElement | null;
+  if (!input || !engine || busy) return;
+  const v = input.value.trim();
+  if (!v) return;
+  if (engine.state().outcome !== 'playing') return;
+  input.value = '';
+  void guarded(async () => {
+    const res = await engine!.requestJumpByDescription(v);
+    if (res.kind === 'refused') {
+      addNote('system', res.reason);
+      return;
+    }
+    if (res.kind === 'needs-confirmation') {
+      const { entry, hostId, year } = res;
+      if (entry.type !== 'rewind-window' && entry.type !== 'rewind-dead-host') return;
+      addNote('system', res.reasoning);
+      openModal(
+        'The Open Door',
+        `${res.warning}\n\nScar ${engine!.state().scars + 1} of ${dials.scarCap}. Enter anyway?`,
+        [
+          { label: 'Enter — take the scar', danger: true, fn: async () => {
+              const result = await engine!.confirmRewind(entry, hostId, year);
+              applyResult(result);
+            } },
+          { label: 'Stay out', fn: async () => {} },
+        ],
+      );
+      return;
+    }
+    res.result.notes.unshift({ kind: 'system', text: res.reasoning });
+    applyResult(res.result);
+  });
+}
 
 /** Questions are thought; commands are acts. Thought is free and touches nothing. */
 function looksLikeQuestion(v: string): boolean {
@@ -752,6 +791,10 @@ const LAYOUT = `
         <div class="panel-head">The era — click a year to enter a body</div>
         <div id="grid"></div>
         <div class="dim gridkey">◉ now · dot = a window you occupied (re-entry scars) · † died in play · × not alive</div>
+        <div id="describe-row">
+          <input id="describe-text" placeholder="or describe a body — 'the raker nearest the chapel at noon, Year 63'">
+          <button id="describe-go">Enter them</button>
+        </div>
       </div>
       <div id="knowledge" class="panel"></div>
       <details class="panel"><summary>The Ledger (every page, including the unmade)</summary><div id="ledger-body"></div></details>
