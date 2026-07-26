@@ -67,6 +67,17 @@ export class Engine {
     return this.referee.state();
   }
 
+  /** UI continuity for save/resume — no game state lives here. */
+  uiState() {
+    return { locationId: this.locationId, lastChoices: this.lastChoices, recentProse: this.recentProse };
+  }
+
+  restoreUi(s: { locationId: string; lastChoices: string[]; recentProse: string[] }) {
+    this.locationId = s.locationId;
+    this.lastChoices = s.lastChoices;
+    this.recentProse = s.recentProse;
+  }
+
   currentHost(): Host | null {
     const id = this.state().currentHostId;
     return id ? (this.referee.hostById(id) ?? null) : null;
