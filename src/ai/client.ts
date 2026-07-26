@@ -30,6 +30,8 @@ function priceFor(model: string): [number, number] {
 
 export class ClaudeClient {
   readonly log: AiCallLogEntry[] = [];
+  /** Stop reason of the most recent call — 'max_tokens' means the reply was cut off. */
+  lastStopReason: string | null = null;
 
   constructor(private apiKey: string) {}
 
@@ -67,6 +69,7 @@ export class ClaudeClient {
     }
 
     const data = await res.json();
+    this.lastStopReason = data.stop_reason ?? null;
     const text: string = (data.content ?? [])
       .filter((b: { type: string }) => b.type === 'text')
       .map((b: { text: string }) => b.text)
@@ -89,22 +92,30 @@ export class ClaudeClient {
   }
 
   /**
-   * Complete and parse a JSON reply. One retry with the parse error
-   * appended, then fail loudly — the Referee never accepts garbage.
+   * Complete and parse a JSON reply. A reply cut off at the token limit
+   * retries with double the room; a malformed reply retries once with the
+   * parse error appended. Then fail loudly — the Referee never accepts garbage.
    */
   async completeJson<T>(params: Parameters<ClaudeClient['complete']>[0]): Promise<T> {
-    let raw = await this.complete(params);
-    for (let attempt = 0; attempt < 2; attempt++) {
+    let call = { ...params };
+    let raw = await this.complete(call);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (this.lastStopReason === 'max_tokens') {
+        if (attempt === 2) throw new Error(`AI reply still truncated at ${call.maxTokens} tokens.`);
+        call = { ...call, maxTokens: call.maxTokens * 2, summary: call.summary + ' (more room)' };
+        raw = await this.complete(call);
+        continue;
+      }
       try {
         return JSON.parse(stripFences(raw)) as T;
       } catch (err) {
-        if (attempt === 1) throw new Error(`Unparseable AI reply after retry: ${String(err)}\n---\n${raw.slice(0, 500)}`);
+        if (attempt === 2) throw new Error(`Unparseable AI reply after retry: ${String(err)}\n---\n${raw.slice(0, 500)}`);
         raw = await this.complete({
-          ...params,
+          ...call,
           user:
-            params.user +
+            call.user +
             `\n\nYour previous reply was not valid JSON (${String(err)}). Reply again with ONLY valid JSON, no code fences, no commentary.`,
-          summary: params.summary + ' (retry)',
+          summary: call.summary + ' (retry)',
         });
       }
     }

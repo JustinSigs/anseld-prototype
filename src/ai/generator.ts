@@ -49,8 +49,8 @@ export async function generateEraSheet(client: ClaudeClient, dials: Dials): Prom
     kind: 'generator',
     model: dials.generatorModel,
     system: GENERATOR_SYSTEM,
-    user: `Generate the era. Years ${ERA_START}–${ERA_END}. Loose prophecy count: ${dials.looseProphecyCount}. Make the town's open wound connect to at least one prime condition.`,
-    maxTokens: 4000,
+    user: `Generate the era. Years ${ERA_START}–${ERA_END}. Loose prophecy count: ${dials.looseProphecyCount}. Make the town's open wound connect to at least one prime condition. Keep every description and seed to a single line — the JSON must stay compact.`,
+    maxTokens: 8000,
     summary: 'generate era sheet',
   });
   return validateSheet(raw);
