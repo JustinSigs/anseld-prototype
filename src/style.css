@@ -62,6 +62,11 @@ label { display: block; margin-top: 10px; font-size: 13px; color: var(--dim); }
 .subtitle { color: var(--dim); margin-bottom: 40px; }
 .start-box { display: flex; flex-direction: column; gap: 10px; text-align: left; }
 .start-box button { padding: 12px; font-size: 15px; }
+.proto2-link {
+  display: block; text-align: center; padding: 12px;
+  border: 1px dashed var(--lake); color: #90a8b4; text-decoration: none;
+}
+.proto2-link:hover { border-color: var(--lamp); color: var(--lamp); }
 
 /* ---------- game layout ---------- */
 

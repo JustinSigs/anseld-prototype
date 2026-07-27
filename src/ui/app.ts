@@ -752,6 +752,7 @@ const LAYOUT = `
     <button id="start-mock">Mock run — Saltmere, scripted, no AI, free</button>
     <button id="start-live">Live run — a fresh era, written as you play</button>
     <button id="start-resume" style="display:none">Resume the saved run</button>
+    <a href="town.html" class="proto2-link">Prototype 2 — The Clockwork Town →</a>
     <label>API key (live runs only — stays on this machine)</label>
     <input id="api-key" type="password" placeholder="sk-ant-…">
     <div id="start-status" class="dim"></div>
