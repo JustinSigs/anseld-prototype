@@ -7,6 +7,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         town: resolve(__dirname, 'town.html'),
+        island: resolve(__dirname, 'island.html'),
       },
     },
   },

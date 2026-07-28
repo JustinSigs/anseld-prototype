@@ -270,7 +270,7 @@ const LAYOUT = `
     <div id="tt-start-error" class="error"></div>
     <div class="dim" style="margin-top:16px">Walk: WASD/arrows · Act: E · Pause: Space · Speed: 1/2/3<br>
     The town runs on its own clock. Watch it. Anyone you can stand beside, you can be.<br>
-    <a href="index.html">← the original text prototype</a></div>
+    <a href="index.html">← the original text prototype</a> · <a href="island.html">Gullshead Island →</a></div>
   </div>
 </div>
 
