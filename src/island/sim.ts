@@ -133,8 +133,6 @@ export class IslandSim {
     }
     if (this.tourists.length > 0) {
       this.reputation = nextReputation(this.reputation, stars);
-    } else if (this.clock.day > 1) {
-      this.reputation = nextReputation(this.reputation, []);
     }
     this.tourists = [];
 
@@ -159,6 +157,18 @@ export class IslandSim {
     // Season end.
     if (this.clock.day > SEASON_DAYS) {
       this.seasonOver = true;
+      return;
+    }
+
+    // The ferry does not sail to an island with nothing open. No arrivals,
+    // no reputation damage either — the mainland can't review what it never saw.
+    const anythingOpen = LOTS.some((l) => this.lotOpen(l.id));
+    if (!anythingOpen) {
+      this.say(
+        this.clock.day === 1
+          ? 'Captain Ferrick, over the wire: “Nothing’s open, Mayor. I’m not ferrying people to a rumor. Fix something — I’ll bring them when there’s a there there.”'
+          : 'The ferry stays on the mainland. Ferrick’s note reads, in full: “Still nothing open. — F.”',
+      );
       return;
     }
 

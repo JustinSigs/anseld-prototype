@@ -93,11 +93,18 @@ describe('a day on Gullshead', () => {
     }
   }
 
-  it('the nine o’clock ferry brings visitors; they seek what the island can offer', () => {
+  it('the ferry refuses an island with nothing open; arrivals begin once something is', () => {
     const sim = new IslandSim();
     runUntil(sim, 10);
-    expect(sim.tourists.length).toBeGreaterThan(0);
-    expect(sim.tourists.length).toBe(arrivalsFor(2.0));
+    expect(sim.tourists.length).toBe(0); // nothing open, nobody aboard
+    expect(sim.reputation).toBeCloseTo(2.0); // and no reputation damage for it
+
+    sim.treasury = 100;
+    sim.orderRepair('bandstand');
+    sim.clock.speed = 4;
+    for (let i = 0; i < 8000 && sim.tourists.length === 0; i++) sim.tick(1000);
+    expect(sim.lotStates.get('bandstand')).toBe('open');
+    expect(sim.tourists.length).toBe(arrivalsFor(sim.reputation));
   });
 
   it('repair posted → Hobb builds → lot opens next morning → tourists pay', () => {

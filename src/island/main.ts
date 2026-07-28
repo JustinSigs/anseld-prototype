@@ -49,7 +49,7 @@ function start(mode: 'mock' | 'live') {
   $('#is-talk-close').onclick = closeAll;
   $('#is-journal-btn').onclick = () => togglePanel('journal');
   $('#is-gazette-btn').onclick = () => togglePanel('gazette');
-  sim.say('Day 1 on Gullshead. You are the mayor. The ferry comes at nine; the treasury holds 50 coin; the island holds its breath. The notice board in the square is where decisions become official.');
+  sim.say('Day 1 on Gullshead. You are the mayor; the treasury holds 50 coin. The ferry will not bring a single tourist until something on this island is actually OPEN — the notice board in the square is where that gets fixed.');
   requestAnimationFrame(loop);
 }
 
@@ -366,7 +366,7 @@ const LAYOUT = `
     <input id="is-key" type="password" placeholder="sk-ant-…">
     <div id="is-start-error" class="error"></div>
     <div class="dim" style="margin-top:16px">
-    You are the new mayor. Tourists arrive by ferry at nine wanting food, fun, history, and rest — build things and they pay.
+    You are the new mayor. Repair something first — the ferry won't sail to an island with nothing open. Then tourists arrive at nine wanting food, fun, history, and rest — and they pay.
     At night the island is <i>otherwise occupied</i>. Tourists who see it tell the mainland, and the mainland stops coming.<br><br>
     Walk: WASD · Act: E · Pause: Space · Speed: 1/2/3<br>
     <a href="index.html">prototype 1 — the text game</a> · <a href="town.html">prototype 2 — the clockwork town</a></div>
