@@ -162,3 +162,12 @@ A running, dated record of what was decided, built, and learned. Append-only, in
 - Repair works at the building itself: stand at any boarded door and E offers "Repair (cost)" — the board remains for bonfires/salt/overview.
 - Buildings are visually distinct: per-building wall/floor tints, striped lighthouse, and a shingle over each door (🛏 🍲 🎶 🏛 📜).
 - Everyone has a home: four cottages added; locals' schedules end at their own doors; windows glow warm after dark (homes and civic buildings always; repaired lots too; ruins stay dark — which is exactly where the Weeping House likes it).
+
+### 2026-07-28 (night) — the mayor's day
+- **Designer question: "what should the mayor be doing while the day is occurring?"** Answer shipped as a day rhythm of appointments, errands, and preparation:
+  - **Greet the ferry (9:00 appointment):** stand at the pier as visitors land — they tell you what they came for, start warmer, and rate the stay higher. Reviews mention it ("The mayor met the boat personally. Small thing. It isn't, though.").
+  - **Point them somewhere:** direct any tourist to an open attraction or the beach; a match delights (bonus + coin), a mismatch goes in the review ("Confident about it, too.").
+  - **Forecasts from the locals:** ask Ferrick about the weather (smells fog = choir nights), Edda about the lane (keeps the walker's calendar), Maren about anything (knows, tells you the lever). Afternoon talk is now night-planning reconnaissance.
+  - **One odd job a day:** kegs, cart wheel, Edda's cat (found at the chapel, staring at the bell — jobs carry lore). Coin rewards.
+  - **Daytime clue spots:** the scoured lane stones, the chapel's oiled bell with six names scratched in its lip, and the repaired Museum's back cabinet ("NOT FOR SEASON") — day pages join the curse journal; the money-building quietly advances the mystery.
+- 66 tests; smoke clean; deployed.
