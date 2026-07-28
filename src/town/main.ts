@@ -44,6 +44,7 @@ function start(mode: 'mock' | 'live') {
   $('#tt-start').style.display = 'none';
   $('#tt-game').style.display = 'block';
   renderer = new TownRenderer($('#tt-canvas') as HTMLCanvasElement);
+  $('#tt-dialog-close').onclick = closePanels;
   bindInput();
   toast('You wake as Merra Quill, mid-morning-count. Watch the town. WASD to walk, E beside someone to act, Space to pause, 1/2/3 for speed.');
   requestAnimationFrame(loop);
@@ -116,7 +117,18 @@ function interact() {
   openActionMenu(nearby);
 }
 
+/** Panels hold the world: speed drops to 0 while a menu or dialogue is open. */
+let resumeSpeed: 0 | 1 | 2 | 4 = 1;
+function holdWorld() {
+  if (sim.clock.speed !== 0) resumeSpeed = sim.clock.speed;
+  sim.clock.speed = 0;
+}
+function releaseWorld() {
+  if (!panelOpen()) sim.clock.speed = resumeSpeed;
+}
+
 function openActionMenu(nearby: AgentState[]) {
+  holdWorld();
   const el = $('#tt-menu');
   el.innerHTML = '';
   for (const agent of nearby) {
@@ -136,6 +148,7 @@ function openActionMenu(nearby: AgentState[]) {
       const res = sim.possess(agent.def.id);
       if (!res.ok) toast(res.reason ?? 'The door does not open.');
       else toast(`You are ${agent.def.name} now. The body you left resumes its day, unsteered.`);
+      releaseWorld();
     };
     if (sim.player().def.species !== 'human') talk.disabled = true;
     row.appendChild(talk);
@@ -144,13 +157,17 @@ function openActionMenu(nearby: AgentState[]) {
   }
   const close = document.createElement('button');
   close.textContent = 'Never mind';
-  close.onclick = () => (el.style.display = 'none');
+  close.onclick = () => {
+    el.style.display = 'none';
+    releaseWorld();
+  };
   el.appendChild(close);
   el.style.display = 'block';
 }
 
 async function doTalk(target: AgentState) {
   busy = true;
+  holdWorld();
   $('#tt-dialog').style.display = 'block';
   $('#tt-dialog-body').textContent = '…';
   $('#tt-dialog-name').textContent = target.def.name;
@@ -236,6 +253,7 @@ function panelOpen(): boolean {
 function closePanels() {
   $('#tt-dialog').style.display = 'none';
   $('#tt-menu').style.display = 'none';
+  releaseWorld();
 }
 
 // ---------------- Layout ----------------
@@ -273,7 +291,7 @@ const LAYOUT = `
     <div id="tt-dialog" style="display:none">
       <div id="tt-dialog-name" class="panel-head"></div>
       <div id="tt-dialog-body"></div>
-      <button onclick="document.getElementById('tt-dialog').style.display='none'">Leave them to it</button>
+      <button id="tt-dialog-close">Leave them to it</button>
     </div>
     <div id="tt-toast" style="display:none"></div>
   </div>

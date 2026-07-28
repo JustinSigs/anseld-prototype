@@ -75,12 +75,18 @@ export class TownSim {
     }
     agent.activity = atTarget ? stop.activity : `heading to ${stop.activity}`;
 
-    // Walk.
+    // Walk — but nobody walks through the worn body. They wait.
     if (agent.path.length > 0) {
+      const player = this.player();
       agent.walkProgress += gameMinutes;
       while (agent.walkProgress >= MINUTES_PER_TILE && agent.path.length > 0) {
+        const next = agent.path[0];
+        if (next.x === player.x && next.y === player.y) {
+          agent.walkProgress = 0; // blocked by you; they stand and wait
+          break;
+        }
         agent.walkProgress -= MINUTES_PER_TILE;
-        const next = agent.path.shift()!;
+        agent.path.shift();
         agent.x = next.x;
         agent.y = next.y;
       }
@@ -100,10 +106,11 @@ export class TownSim {
     return true;
   }
 
-  /** Agents adjacent to the player (for talk/possess). */
+  /** Agents in reach of the player: any surrounding tile, diagonals included,
+   *  or someone standing right where you stand. */
   adjacentAgents(): AgentState[] {
     const p = this.player();
-    return this.agents.filter((a) => !a.worn && Math.abs(a.x - p.x) + Math.abs(a.y - p.y) === 1);
+    return this.agents.filter((a) => !a.worn && Math.abs(a.x - p.x) <= 1 && Math.abs(a.y - p.y) <= 1);
   }
 
   /**
@@ -114,7 +121,7 @@ export class TownSim {
     const target = this.agentById(targetId);
     if (!target) return { ok: false, reason: 'No such body.' };
     const p = this.player();
-    if (Math.abs(target.x - p.x) + Math.abs(target.y - p.y) !== 1) {
+    if (Math.abs(target.x - p.x) > 1 || Math.abs(target.y - p.y) > 1) {
       return { ok: false, reason: 'Too far. Stand beside them.' };
     }
     p.worn = false;

@@ -108,6 +108,32 @@ describe('the sim', () => {
     expect(sim.agentById('merra')!.worn).toBe(false); // handed back to her day, unsteered
   });
 
+  it('reach includes diagonals and overlap — talking never misses a neighbor', () => {
+    const sim = new TownSim('merra');
+    const p = sim.player();
+    const issa = sim.agentById('issa')!;
+    issa.x = p.x + 1;
+    issa.y = p.y + 1; // diagonal
+    expect(sim.adjacentAgents().some((a) => a.def.id === 'issa')).toBe(true);
+    issa.x = p.x;
+    issa.y = p.y; // standing on you (they pathed through before you were fixed)
+    expect(sim.adjacentAgents().some((a) => a.def.id === 'issa')).toBe(true);
+    expect(sim.possess('issa').ok).toBe(true);
+  });
+
+  it('walkers wait rather than stepping onto the worn body', () => {
+    const sim = new TownSim('merra');
+    const p = sim.player();
+    const corb = sim.agentById('corb')!;
+    // Park the player directly on corb's next path tile.
+    corb.x = p.x - 2;
+    corb.y = p.y;
+    corb.path = [{ x: p.x - 1, y: p.y }, { x: p.x, y: p.y }, { x: p.x + 1, y: p.y }];
+    corb.walkProgress = 0;
+    for (let i = 0; i < 20; i++) sim.tick(1000);
+    expect(corb.x === p.x && corb.y === p.y).toBe(false);
+  });
+
   it('player movement respects species rules and a paused world', () => {
     const sim = new TownSim('merra');
     const p = sim.player();
