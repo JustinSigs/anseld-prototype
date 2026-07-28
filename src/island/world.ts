@@ -21,6 +21,7 @@ export enum Tile {
   Tree,
   Bench,
   RuinRubble,
+  Board, // the notice board: municipal power, physically manifest
 }
 
 export type WantKind = 'food' | 'fun' | 'history' | 'rest';
@@ -111,6 +112,15 @@ building(39, 1, 43, 4, 41, 4, 'lighthouse'); // the lighthouse
 // The chapel ruin: low rubble, no roof, no door — it is always open and always cold.
 rect(4, 3, 8, 6, Tile.RuinRubble);
 
+// --- Homes: everyone sleeps somewhere, and windows glow at night ---
+building(17, 9, 20, 12, 18, 12, 'home-petra');
+building(22, 9, 25, 12, 23, 12, 'home-osmund');
+building(12, 17, 15, 20, 13, 20, 'home-edda');
+building(16, 17, 19, 20, 17, 20, 'home-hobb');
+
+// --- The notice board: a real object in the square ---
+set(25, 17, Tile.Board);
+
 // --- The four lots (drawn as buildings; render + sim treat state) ---
 for (const lot of LOTS) {
   building(lot.x0, lot.y0, lot.x1, lot.y1, lot.doorX, lot.doorY, lot.id);
@@ -123,7 +133,7 @@ DOORS.set(key(7, 24), 'bandstand');
 
 // --- Furniture and nature ---
 for (const [bx, by] of [[21, 18], [27, 18], [21, 20], [27, 20]] as const) set(bx, by, Tile.Bench);
-for (const [tx, ty] of [[2, 9], [3, 12], [5, 10], [1, 5], [14, 3], [20, 3], [28, 3], [34, 5], [46, 8], [46, 13], [2, 18], [16, 22], [37, 22], [46, 22], [18, 10], [26, 10]] as const) {
+for (const [tx, ty] of [[2, 9], [3, 12], [5, 10], [1, 5], [14, 3], [20, 3], [28, 3], [34, 5], [46, 8], [46, 13], [2, 18], [37, 22], [46, 22]] as const) {
   set(tx, ty, Tile.Tree);
 }
 
@@ -134,9 +144,12 @@ export function tileAt(x: number, y: number): Tile {
   return WORLD[key(x, y)];
 }
 
+/** Doors that are never locked: civic buildings and everyone's homes. */
+const ALWAYS_OPEN = new Set(['office', 'lighthouse', 'home-petra', 'home-osmund', 'home-edda', 'home-hobb']);
+
 /**
  * Passability. Doors belong to buildings: lot doors open only when the lot
- * is repaired ('open'); the office and lighthouse are always open.
+ * is repaired ('open'); civic buildings and homes are always open.
  */
 export function passable(x: number, y: number, lotOpen: (lotId: string) => boolean): boolean {
   const t = tileAt(x, y);
@@ -144,15 +157,34 @@ export function passable(x: number, y: number, lotOpen: (lotId: string) => boole
     case Tile.Wall:
     case Tile.Tree:
     case Tile.Water:
+    case Tile.Board:
       return false;
     case Tile.Door: {
       const id = DOORS.get(key(x, y))!;
-      if (id === 'office' || id === 'lighthouse') return true;
+      if (ALWAYS_OPEN.has(id)) return true;
       return lotOpen(id);
     }
     default:
       return true;
   }
+}
+
+/** Every roofed structure, for per-building looks and night windows. */
+export interface BuildingRegion {
+  id: string;
+  x0: number; y0: number; x1: number; y1: number;
+}
+export const BUILDINGS: BuildingRegion[] = [
+  ...LOTS.map((l) => ({ id: l.id, x0: l.x0, y0: l.y0, x1: l.x1, y1: l.y1 })),
+  { id: 'office', x0: 30, y0: 16, x1: 35, y1: 19 },
+  { id: 'lighthouse', x0: 39, y0: 1, x1: 43, y1: 4 },
+  { id: 'home-petra', x0: 17, y0: 9, x1: 20, y1: 12 },
+  { id: 'home-osmund', x0: 22, y0: 9, x1: 25, y1: 12 },
+  { id: 'home-edda', x0: 12, y0: 17, x1: 15, y1: 20 },
+  { id: 'home-hobb', x0: 16, y0: 17, x1: 19, y1: 20 },
+];
+export function buildingAt(x: number, y: number): BuildingRegion | undefined {
+  return BUILDINGS.find((b) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1);
 }
 
 export const PLACES: NamedPlace[] = [
@@ -168,6 +200,10 @@ export const PLACES: NamedPlace[] = [
   { id: 'chapel', name: 'The chapel ruin', x: 6, y: 5 },
   { id: 'chapel-bell', name: 'The old bell', x: 5, y: 4 },
   { id: 'main-street', name: 'Main street', x: 20, y: 15 },
+  { id: 'home-petra', name: 'Petra’s cottage', x: 18, y: 10 },
+  { id: 'home-osmund', name: 'Osmund’s cottage', x: 23, y: 10 },
+  { id: 'home-edda', name: 'Edda’s cottage', x: 13, y: 18 },
+  { id: 'home-hobb', name: 'Hobb’s cottage', x: 17, y: 18 },
   { id: 'street-east', name: 'East end', x: 40, y: 15 },
   { id: 'salt-spot', name: 'The north lane', x: 20, y: 7 },
 ];

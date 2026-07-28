@@ -140,6 +140,17 @@ function interact() {
       sim.ringBell();
     }));
   }
+  // Standing at a boarded building: repair it on the spot.
+  for (const lot of LOTS) {
+    if (sim.lotStates.get(lot.id) !== 'ruined') continue;
+    if (Math.abs(sim.mayor.x - lot.doorX) <= 2 && Math.abs(sim.mayor.y - lot.doorY) <= 2) {
+      anything = true;
+      menu.appendChild(menuRow(`${lot.name} — boarded up`, `Repair (${lot.cost} coin)`, () => {
+        closeAll();
+        sim.orderRepair(lot.id);
+      }));
+    }
+  }
   for (const person of sim.nearbyPeople()) {
     anything = true;
     const label = 'phase' in person ? `${person.def.name} (visitor)` : `${person.def.name} — ${(person as LocalState).activity}`;

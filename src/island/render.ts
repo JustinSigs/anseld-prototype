@@ -4,7 +4,7 @@
 // the night's manifestations — glow, fog, figures in the water.
 // ============================================================
 
-import { MAP_H, MAP_W, Tile, tileAt, LOTS, SALT_LINE, DOORS } from './world';
+import { MAP_H, MAP_W, Tile, tileAt, LOTS, SALT_LINE, DOORS, buildingAt } from './world';
 import { eventPosition, walkerHaltsAt } from './events';
 import type { IslandSim, LocalState, TouristState } from './sim';
 
@@ -28,6 +28,21 @@ const COLORS: Record<Tile, string> = {
   [Tile.Tree]: '#5a7248',
   [Tile.Bench]: '#8a8276',
   [Tile.RuinRubble]: '#6a6258',
+  [Tile.Board]: '#8a8276',
+};
+
+/** Every building gets its own face. The island contains multitudes. */
+const BUILDING_LOOK: Record<string, { wall?: string; floor?: string; plaque?: string }> = {
+  inn: { wall: '#6d5340', floor: '#7a6248', plaque: '🛏' },
+  chowder: { wall: '#7a4636', floor: '#6d5442', plaque: '🍲' },
+  bandstand: { floor: '#b08d4a', plaque: '🎶' },
+  museum: { wall: '#5d6068', floor: '#74767c', plaque: '🏛' },
+  office: { wall: '#4a5568', floor: '#6d5942', plaque: '📜' },
+  lighthouse: { floor: '#8a8a8a' }, // striped walls handled specially
+  'home-petra': { wall: '#6d5a48', floor: '#7a6a52' },
+  'home-osmund': { wall: '#5f5a42', floor: '#6d6650' },
+  'home-edda': { wall: '#684e52', floor: '#74605e' },
+  'home-hobb': { wall: '#54604e', floor: '#66705c' },
 };
 
 export class IslandRenderer {
@@ -64,7 +79,7 @@ export class IslandRenderer {
         const x = this.camX + vx;
         const y = this.camY + vy;
         const t = tileAt(x, y);
-        ctx.fillStyle = COLORS[t];
+        ctx.fillStyle = this.tileColor(t, x, y);
         ctx.fillRect(vx * CELL, vy * CELL, CELL, CELL);
         this.decorate(ctx, sim, t, x, y, vx * CELL, vy * CELL);
       }
@@ -110,6 +125,19 @@ export class IslandRenderer {
     }
   }
 
+  private tileColor(t: Tile, x: number, y: number): string {
+    if (t === Tile.Wall || t === Tile.Floor) {
+      const b = buildingAt(x, y);
+      if (b) {
+        if (b.id === 'lighthouse' && t === Tile.Wall) return y % 2 === 0 ? '#c8c0b0' : '#a8443a'; // stripes
+        const look = BUILDING_LOOK[b.id];
+        const c = t === Tile.Wall ? look?.wall : look?.floor;
+        if (c) return c;
+      }
+    }
+    return COLORS[t];
+  }
+
   private decorate(ctx: CanvasRenderingContext2D, sim: IslandSim, t: Tile, x: number, y: number, px: number, py: number): void {
     const h = (x * 31 + y * 17) % 7;
     switch (t) {
@@ -151,6 +179,39 @@ export class IslandRenderer {
           ctx.fillStyle = '#d9a441';
           ctx.fillRect(px + 4, py + 8, 6, 6); // scaffolding glints
         }
+        // Lit windows at night: homes and civic buildings always, lots when open.
+        const b = buildingAt(x, y);
+        if (b && sim.clock.darkness > 0.25 && h < 3 && y > b.y0) {
+          const lit = b.id.startsWith('home-') || b.id === 'office' || b.id === 'lighthouse' || sim.lotStates.get(b.id) === 'open';
+          if (lit) {
+            const g = ctx.createRadialGradient(px + 24, py + 22, 2, px + 24, py + 22, 30);
+            g.addColorStop(0, 'rgba(255, 200, 110, 0.35)');
+            g.addColorStop(1, 'rgba(255, 200, 110, 0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(px - 12, py - 12, CELL + 24, CELL + 24);
+            ctx.fillStyle = '#f2c05a';
+            ctx.fillRect(px + 18, py + 16, 12, 14);
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(px + 23, py + 16, 2, 14);
+            ctx.fillRect(px + 18, py + 22, 12, 2);
+          }
+        }
+        break;
+      }
+      case Tile.Board: {
+        // The notice board: a post, a plank face, and civic paperwork.
+        ctx.fillStyle = '#4a3a28';
+        ctx.fillRect(px + 20, py + 26, 8, 18);
+        ctx.fillStyle = '#6d5340';
+        ctx.fillRect(px + 4, py + 6, CELL - 8, 24);
+        ctx.fillStyle = '#3a2d20';
+        ctx.fillRect(px + 4, py + 6, CELL - 8, 3);
+        ctx.fillStyle = '#e8dfc8';
+        ctx.fillRect(px + 8, py + 12, 10, 12);
+        ctx.fillRect(px + 21, py + 11, 9, 13);
+        ctx.fillRect(px + 33, py + 13, 8, 10);
+        ctx.fillStyle = '#b03a5a';
+        ctx.fillRect(px + 12, py + 10, 3, 3); // the mayor's official pin
         break;
       }
       case Tile.Door: {
@@ -171,6 +232,18 @@ export class IslandRenderer {
         } else {
           ctx.fillStyle = '#d9a441';
           ctx.fillRect(px + CELL - 16, py + CELL / 2, 4, 4);
+        }
+        // The shingle: what this building is, hung over the door.
+        const bid = DOORS.get(y * MAP_W + x);
+        const plaque = bid ? BUILDING_LOOK[bid]?.plaque : undefined;
+        if (plaque) {
+          ctx.fillStyle = '#e8dfc8';
+          ctx.fillRect(px + 6, py - 8, 26, 22);
+          ctx.strokeStyle = '#3a2d20';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(px + 6, py - 8, 26, 22);
+          ctx.font = '15px serif';
+          ctx.fillText(plaque, px + 10, py + 9);
         }
         break;
       }

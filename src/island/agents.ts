@@ -55,7 +55,7 @@ export const LOCALS: LocalDef[] = [
       { at: 12, placeId: 'square', activity: 'lunch on a bench' },
       { at: 13, placeId: 'main-street', activity: 'sweeping, again' },
       { at: 21, placeId: 'square', activity: 'evening air' },
-      { at: 23, placeId: 'main-street', activity: 'home' },
+      { at: 22, placeId: 'home-petra', activity: 'lamplight and ledgers' },
     ],
     answers: [
       { keywords: ['inn', 'sleep', 'bed', 'rest'], reply: '“Fix my inn and I will make those tourists so comfortable they won’t look out a window all night. That is a professional guarantee, Mayor.”' },
@@ -71,7 +71,7 @@ export const LOCALS: LocalDef[] = [
       { at: 7, placeId: 'square', activity: 'setting up the soup cart' },
       { at: 16, placeId: 'main-street', activity: 'buying fish' },
       { at: 19, placeId: 'square', activity: 'packing the cart' },
-      { at: 22, placeId: 'main-street', activity: 'home' },
+      { at: 21.5, placeId: 'home-osmund', activity: 'soup for one' },
     ],
     answers: [
       { keywords: ['food', 'chowder', 'eat'], reply: '“Rebuild the Chowder House and I’ll have tourists writing poems. Chowder poems. The mainland loves poems.”' },
@@ -87,7 +87,7 @@ export const LOCALS: LocalDef[] = [
       { at: 8, placeId: 'main-street', activity: 'looking at a wall, professionally' },
       { at: 12, placeId: 'square', activity: 'lunch' },
       { at: 13, placeId: 'street-east', activity: 'measuring something' },
-      { at: 21, placeId: 'main-street', activity: 'home' },
+      { at: 21, placeId: 'home-hobb', activity: 'sharpening things' },
     ],
     answers: [
       { keywords: ['build', 'repair', 'fix', 'cost'], reply: '“Post it on the notice board, Mayor. Board says build, I build. Board says nothing, I stand here looking at this wall. Democracy.”' },
@@ -103,7 +103,7 @@ export const LOCALS: LocalDef[] = [
       { at: 9, placeId: 'square', activity: 'holding court on a bench' },
       { at: 13, placeId: 'main-street', activity: 'inspecting other people’s business' },
       { at: 17, placeId: 'square', activity: 'bench, second shift' },
-      { at: 21, placeId: 'main-street', activity: 'home' },
+      { at: 20.5, placeId: 'home-edda', activity: 'watching the street from her window' },
     ],
     answers: [
       { keywords: ['walker', 'lantern', 'light', 'lane'], reply: '“The lantern walks every third night, regular as rent. Chapel to lighthouse, never varies. My grandmother said salt across the lane turns it back. My grandmother also salted her tea, so weigh that as you like.”' },
