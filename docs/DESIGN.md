@@ -156,3 +156,9 @@ A running, dated record of what was decided, built, and learned. Append-only, in
 
 ### 2026-07-28 (later still) — ferry gating
 - **Ruled and shipped:** no tourists arrive until at least one lot is open — Captain Ferrick refuses to "ferry people to a rumor." No reputation decay while the island is closed (the mainland can't review what it never saw). Kills the doomed-day-one problem; the season now opens with a building beat, then the first ferry is an earned event.
+
+### 2026-07-28 (evening) — get-it-running notes from the designer, shipped same session
+- Notice board is now a physical object in the square (post, plank, civic paperwork, the mayor's official pin).
+- Repair works at the building itself: stand at any boarded door and E offers "Repair (cost)" — the board remains for bonfires/salt/overview.
+- Buildings are visually distinct: per-building wall/floor tints, striped lighthouse, and a shingle over each door (🛏 🍲 🎶 🏛 📜).
+- Everyone has a home: four cottages added; locals' schedules end at their own doors; windows glow warm after dark (homes and civic buildings always; repaired lots too; ruins stay dark — which is exactly where the Weeping House likes it).
