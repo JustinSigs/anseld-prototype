@@ -7,8 +7,8 @@
 import { GameClock } from '../town/clock';
 import { LOCALS, currentStop, makeTourist, type LocalDef, type TouristDef, type ScheduleStop } from './agents';
 import { LOTS, findPath, passable, placeById, type WantKind } from './world';
-import { COIN_PER_WANT, arrivalsFor, mockReview, nextReputation, starsFor, type TouristOutcome } from './economy';
-import { CURSE_PAGES, eventForNight, eventPosition, eventPrevented, walkerHaltsAt, type NightEvent } from './events';
+import { COIN_PER_WANT, WANT_LABEL, arrivalsFor, mockReview, nextReputation, starsFor, type TouristOutcome } from './economy';
+import { CURSE_PAGES, DAY_PAGES, eventForNight, eventPosition, eventPrevented, walkerHaltsAt, type NightEvent } from './events';
 
 const MINUTES_PER_TILE = 4;
 export const SEASON_DAYS = 10;
@@ -36,7 +36,37 @@ export interface TouristState extends Walker {
   sleptRough: boolean;
   visitUntil: number; // clock minutes
   idleHop: number;
+  greeted: boolean;
+  guidedWell: boolean;
+  guidedBadly: boolean;
+  /** Where the mayor pointed them, if anywhere. Lot id or 'beach'. */
+  forcedTarget: string | null;
 }
+
+export interface JobState {
+  id: string;
+  giver: string;
+  description: string;
+  placeId: string;
+  doneLine: string;
+  reward: number;
+  done: boolean;
+}
+
+const JOB_POOL: Array<Omit<JobState, 'done'>> = [
+  {
+    id: 'kegs', giver: 'Petra Vane', description: 'Petra’s kegs came in on the early boat and are “walking themselves nowhere.” Meet them at the top of the pier.',
+    placeId: 'pier-top', doneLine: 'You roll Petra’s kegs up the hill. She watches you do all of it and calls it “teamwork.” +6 coin.', reward: 6,
+  },
+  {
+    id: 'cart', giver: 'Osmund Groat', description: 'Osmund’s soup cart shed a wheel somewhere on main street. The soup, he stresses, is fine.',
+    placeId: 'main-street', doneLine: 'You find the wheel, refit it, and accept a ladle of chowder as partial payment. +5 coin and the chowder was, honestly, excellent.', reward: 5,
+  },
+  {
+    id: 'cat', giver: 'Old Edda', description: 'Edda’s cat is missing again. “Check somewhere it shouldn’t be. That’s where it goes. It’s a cat.”',
+    placeId: 'chapel', doneLine: 'The cat is at the chapel ruin, sitting bolt upright, staring at the bell. It allows itself to be carried home. Edda pays you 4 coin and does not ask what it was looking at.', reward: 4,
+  },
+];
 
 export interface GazetteEntry {
   day: number;
@@ -70,6 +100,7 @@ export class IslandSim {
 
   seasonOver = false;
   ferryStopped = false;
+  todaysJob: JobState | null = null;
   private lastMorningDay = 0;
   private seenPages = new Set<string>();
   private nightAnnounced = false;
@@ -126,6 +157,9 @@ export class IslandSim {
         scared: t.scared,
         sleptRough: t.sleptRough,
         scaredBy: t.scaredBy,
+        greeted: t.greeted,
+        guidedWell: t.guidedWell,
+        guidedBadly: t.guidedBadly,
       };
       const review = mockReview(outcome);
       stars.push(starsFor(outcome));
@@ -186,9 +220,15 @@ export class IslandSim {
       this.tourists.push({
         def, x: pier.x, y: pier.y, path: [], walkProgress: 0,
         phase: 'arriving', wantsMet: [], scared: false, sleptRough: false, visitUntil: 0, idleHop: 0,
+        greeted: false, guidedWell: false, guidedBadly: false, forcedTarget: null,
       });
     }
     this.say(`The ferry docks: ${count} visitor${count === 1 ? '' : 's'} down the gangway.`);
+
+    // One odd job a day keeps the mayor honest.
+    const job = JOB_POOL[(this.clock.day + 1) % JOB_POOL.length];
+    this.todaysJob = { ...job, done: false };
+    this.say(`${job.giver} is asking after you: ${job.description}`);
   }
 
   private nightLifecycle(): void {
@@ -238,6 +278,12 @@ export class IslandSim {
       t.path = [];
     }
 
+    // The mayor at the gangway: a handshake, a name, and what they came for.
+    if (!t.greeted && (t.phase === 'arriving' || hour < 10.5) && Math.abs(t.x - this.mayor.x) + Math.abs(t.y - this.mayor.y) <= 2) {
+      t.greeted = true;
+      this.say(`You welcome ${t.def.name} ashore. “Mayor! Came for ${t.def.wants.map((w) => WANT_LABEL[w]).join(' and ')}, mostly.” (${t.def.temper}.)`);
+    }
+
     switch (t.phase) {
       case 'arriving': {
         const sq = placeById('square');
@@ -247,6 +293,34 @@ export class IslandSim {
       }
       case 'seeking': {
         if (hour >= 21.5) return this.nightRouting(t, gameMinutes);
+
+        // The mayor pointed them somewhere; they trust the office, if not the man.
+        if (t.forcedTarget) {
+          const target = t.forcedTarget === 'beach' ? null : LOTS.find((l) => l.id === t.forcedTarget && this.lotOpen(l.id));
+          const spot = target ? { x: target.anchorX, y: target.anchorY } : placeById('beach');
+          this.walkToward(t, spot.x, spot.y, gameMinutes);
+          if (this.at(t, spot.x, spot.y)) {
+            if (target) {
+              const wanted = t.def.wants.includes(target.want) && !t.wantsMet.includes(target.want);
+              if (wanted) {
+                t.wantsMet.push(target.want);
+                t.guidedWell = true;
+                this.treasury += COIN_PER_WANT;
+                this.say(`${t.def.name}, exactly where they wanted to be: ${target.name}. +${COIN_PER_WANT} coin, and they'll remember who pointed.`);
+              } else {
+                t.guidedBadly = true;
+                this.say(`${t.def.name} stands in ${target.name}, visibly recalculating their opinion of local government.`);
+              }
+            } else {
+              this.say(`${t.def.name} reaches the beach, as directed. The beach is free. So is their opinion of it.`);
+            }
+            t.forcedTarget = null;
+            t.phase = 'visiting';
+            t.visitUntil = this.clock.totalMinutes + 60;
+          }
+          break;
+        }
+
         const want = t.def.wants.find((w) => !t.wantsMet.includes(w));
         const lot = want ? LOTS.find((l) => l.want === want && this.lotOpen(l.id)) : undefined;
         if (lot) {
@@ -452,6 +526,47 @@ export class IslandSim {
     this.treasury -= 5;
     this.saltLineLaid = true;
     this.say('You lay a fat white line of salt across the north lane. It looks ridiculous. Old Edda nods approvingly.');
+  }
+
+  /** Point a visitor somewhere. They will go. Whether they THANK you is another matter. */
+  directTourist(touristId: string, targetId: string): void {
+    const t = this.tourists.find((x) => x.def.id === touristId);
+    if (!t || t.scared) return;
+    t.forcedTarget = targetId;
+    t.phase = 'seeking';
+    t.path = [];
+    const label = targetId === 'beach' ? 'the beach' : LOTS.find((l) => l.id === targetId)?.name ?? targetId;
+    this.say(`You point ${t.def.name} toward ${label}. They set off with the confidence of the recently advised.`);
+  }
+
+  /** Finish today's odd job, if the mayor is standing where it needs doing. */
+  completeJob(): void {
+    const job = this.todaysJob;
+    if (!job || job.done) return;
+    if (!this.nearPlace(job.placeId, 2)) {
+      this.say('The job is elsewhere.');
+      return;
+    }
+    job.done = true;
+    this.treasury += job.reward;
+    this.say(job.doneLine);
+  }
+
+  /** Look closely at a daytime spot; some of them hold pages. */
+  examineSpot(spotId: string): void {
+    const page = DAY_PAGES[spotId];
+    if (!page) return;
+    if (this.seenPages.has(spotId)) {
+      this.say('You have already read what this place has to say.');
+      return;
+    }
+    if (spotId === 'museum-exhibits' && !this.lotOpen('museum')) {
+      this.say('The museum is boarded. Whatever it is not showing, it is REALLY not showing.');
+      return;
+    }
+    this.seenPages.add(spotId);
+    this.journal.push({ title: page.title, text: page.text });
+    this.say(`You look closer. “${page.title}” added to your journal.`);
   }
 
   seasonReport(): { rep: number; coin: number; pages: number; failed: boolean } {

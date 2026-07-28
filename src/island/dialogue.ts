@@ -7,7 +7,10 @@
 
 import type { IslandSim, LocalState, TouristState } from './sim';
 import { WANT_LABEL } from './economy';
+import { forecastFor } from './events';
 import { ClaudeClient } from '../ai/client';
+
+const FORECAST_WORDS = ['tonight', 'fog', 'weather', 'forecast', 'evening', 'later'];
 
 const TONE_CONTRACT =
   'Tone: quirky, deadpan, small-town municipal comedy. Locals are unbothered by the supernatural and mostly concerned with practical matters. Tourists are dramatic. The supernatural itself is treated as genuinely eerie — the comedy lives in how people react to it, never in the ghosts being silly. 2-4 sentences, spoken voice, no melodrama.';
@@ -21,10 +24,15 @@ function isLocal(t: LocalState | TouristState): t is LocalState {
 }
 
 export class MockIslandDialogue implements IslandDialogue {
-  async talk(_sim: IslandSim, target: LocalState | TouristState, playerLine?: string): Promise<string> {
+  async talk(sim: IslandSim, target: LocalState | TouristState, playerLine?: string): Promise<string> {
     if (isLocal(target)) {
       if (playerLine) {
         const line = playerLine.toLowerCase();
+        // Asking about tonight gets the forecast, if this person keeps one.
+        if (FORECAST_WORDS.some((w) => line.includes(w))) {
+          const forecast = forecastFor(target.def.id, sim.clock.day);
+          if (forecast) return forecast;
+        }
         for (const a of target.def.answers) {
           if (a.keywords.some((k) => line.includes(k))) return a.reply;
         }
@@ -48,8 +56,9 @@ export class LiveIslandDialogue implements IslandDialogue {
   ) {}
 
   async talk(sim: IslandSim, target: LocalState | TouristState, playerLine?: string): Promise<string> {
+    const forecast = isLocal(target) ? forecastFor(target.def.id, sim.clock.day) : null;
     const who = isLocal(target)
-      ? `${target.def.name}, ${target.def.role}. Voice: ${target.def.voice}. What they know (guard it like a person with motives, hint rather than lecture): ${target.def.answers.map((a) => a.reply).join(' | ')}`
+      ? `${target.def.name}, ${target.def.role}. Voice: ${target.def.voice}. What they know (guard it like a person with motives, hint rather than lecture): ${target.def.answers.map((a) => a.reply).join(' | ')}${forecast ? ` | If asked about tonight/the weather, their honest read: ${forecast}` : ''}`
       : `${(target as TouristState).def.name}, a tourist (${(target as TouristState).def.temper}). Wants: ${(target as TouristState).def.wants.join(', ')}. Wants met so far: ${(target as TouristState).wantsMet.join(', ') || 'none'}. ${(target as TouristState).scared ? 'They witnessed something supernatural last night and are terrified and furious.' : ''}`;
 
     return this.client.complete({

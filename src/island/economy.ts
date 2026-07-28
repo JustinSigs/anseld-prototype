@@ -21,11 +21,21 @@ export interface TouristOutcome {
   scared: boolean;
   sleptRough: boolean;
   scaredBy?: string; // event label, for the review's specifics
+  greeted?: boolean; // the mayor met their boat
+  guidedWell?: boolean; // pointed somewhere they actually wanted
+  guidedBadly?: boolean; // pointed somewhere they did not
 }
 
 export function starsFor(t: TouristOutcome): number {
   if (t.scared) return 1;
-  let stars = 2 + t.wantsMet.length * 1.5 - (t.wants.length - t.wantsMet.length) * 1 - (t.sleptRough ? 0.5 : 0);
+  let stars =
+    2 +
+    t.wantsMet.length * 1.5 -
+    (t.wants.length - t.wantsMet.length) * 1 -
+    (t.sleptRough ? 0.5 : 0) +
+    (t.greeted ? 0.5 : 0) +
+    (t.guidedWell ? 0.5 : 0) -
+    (t.guidedBadly ? 0.5 : 0);
   return Math.max(1, Math.min(5, Math.round(stars)));
 }
 
@@ -65,6 +75,8 @@ export function mockReview(t: TouristOutcome): { stars: number; text: string } {
   let body = met ? ` Found ${met}.` : ' Found very little open, frankly.';
   if (missed) body += ` Came wanting ${missed}; left still wanting.`;
   if (t.sleptRough) body += ' Slept on a bench. The bench was fine. The principle wasn’t.';
+  if (t.greeted && stars >= 3) body += ' The mayor met the boat personally. Small thing. It isn’t, though.';
+  if (t.guidedBadly) body += ' The mayor personally directed me somewhere I had no interest in. Confident about it, too.';
   return { stars, text: `${opener}${body} ${stars} star${stars === 1 ? '' : 's'}. — ${t.name}` };
 }
 

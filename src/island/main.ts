@@ -151,13 +151,45 @@ function interact() {
       }));
     }
   }
+  // Today's odd job, if it needs doing here.
+  if (sim.todaysJob && !sim.todaysJob.done && sim.nearPlace(sim.todaysJob.placeId, 2)) {
+    anything = true;
+    menu.appendChild(menuRow(`${sim.todaysJob.giver}'s job`, 'See to it', () => {
+      closeAll();
+      sim.completeJob();
+    }));
+  }
+  // Daytime places that repay a closer look.
+  const museum = LOTS.find((l) => l.id === 'museum')!;
+  const nearMuseumCabinet = Math.abs(sim.mayor.x - museum.anchorX) <= 2 && Math.abs(sim.mayor.y - museum.anchorY) <= 2;
+  const spots: Array<[string, boolean]> = [
+    ['salt-spot', sim.nearPlace('salt-spot', 2)],
+    ['chapel', sim.nearPlace('chapel', 2)],
+    ['museum-exhibits', nearMuseumCabinet],
+  ];
+  for (const [spotId, near] of spots) {
+    if (!near) continue;
+    anything = true;
+    menu.appendChild(menuRow('Something here rewards attention', 'Look closer', () => {
+      closeAll();
+      sim.examineSpot(spotId);
+    }));
+  }
+
   for (const person of sim.nearbyPeople()) {
     anything = true;
     const label = 'phase' in person ? `${person.def.name} (visitor)` : `${person.def.name} — ${(person as LocalState).activity}`;
-    menu.appendChild(menuRow(label, 'Talk', () => {
+    const row = menuRow(label, 'Talk', () => {
       closeMenuOnly();
       void openTalk(person);
-    }));
+    });
+    if ('phase' in person && !(person as TouristState).scared) {
+      const point = document.createElement('button');
+      point.textContent = 'Point them somewhere';
+      point.onclick = () => openPointMenu(person as TouristState);
+      row.appendChild(point);
+    }
+    menu.appendChild(row);
   }
 
   if (!anything) {
@@ -174,6 +206,27 @@ function interact() {
 
 function closeMenuOnly() {
   $('#is-menu').style.display = 'none';
+}
+
+/** Where shall I point you? The mayor's finger is a civic instrument. */
+function openPointMenu(tourist: TouristState) {
+  const menu = $('#is-menu');
+  menu.innerHTML = `<div class="panel-head">Point ${tourist.def.name} toward…</div>`;
+  const options: Array<[string, string]> = LOTS.filter((l) => sim.lotStates.get(l.id) === 'open').map((l) => [l.id, l.name]);
+  options.push(['beach', 'The beach (free, technically an attraction)']);
+  for (const [id, name] of options) {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.onclick = () => {
+      closeAll();
+      sim.directTourist(tourist.def.id, id);
+    };
+    menu.appendChild(b);
+  }
+  const never = document.createElement('button');
+  never.textContent = 'Never mind';
+  never.onclick = closeAll;
+  menu.appendChild(never);
 }
 
 function menuRow(label: string, action: string, fn: () => void): HTMLElement {
@@ -324,7 +377,7 @@ function renderHud() {
           .map((w) => (t.wantsMet.includes(w) ? `<s>${WANT_LABEL[w]}</s>` : WANT_LABEL[w]))
           .join(', ');
         const mood = t.scared ? '😱' : t.wantsMet.length === t.def.wants.length ? '😊' : '🙂';
-        return `<div class="is-tourist">${mood} <b>${t.def.name}</b><br><span class="dim">wants ${wants}</span></div>`;
+        return `<div class="is-tourist">${mood}${t.greeted ? ' 👋' : ''} <b>${t.def.name}</b><br><span class="dim">wants ${wants}</span></div>`;
       })
       .join('');
   }

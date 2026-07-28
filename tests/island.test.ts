@@ -83,6 +83,65 @@ describe('the nights', () => {
   });
 });
 
+describe("the mayor's day", () => {
+  it('greeting and good guiding raise stars; bad guiding lowers them', () => {
+    const base = { name: 'A', temper: '', wants: ['food' as const], wantsMet: ['food' as const], scared: false, sleptRough: false };
+    const plain = starsFor(base);
+    expect(starsFor({ ...base, greeted: true })).toBeGreaterThanOrEqual(plain);
+    expect(starsFor({ ...base, guidedBadly: true })).toBeLessThanOrEqual(plain);
+  });
+
+  it('locals forecast tonight according to what they each know', async () => {
+    const { forecastFor, eventForNight } = await import('../src/island/events');
+    expect(forecastFor('edda', 3)).toContain('lantern'); // day 3 = walker night
+    const maren3 = forecastFor('maren', 3)!;
+    expect(maren3.toLowerCase()).toContain('salt');
+    expect(forecastFor('osmund', 3)).toBeNull(); // the cook forecasts soup only
+    const tonight5 = eventForNight(5);
+    const maren5 = forecastFor('maren', 5)!;
+    if (tonight5.kind === 'choir') expect(maren5.toLowerCase()).toContain('bell');
+  });
+
+  it('a pointed tourist goes where pointed and remembers whether it matched', () => {
+    const sim = new IslandSim();
+    sim.treasury = 100;
+    sim.orderRepair('museum');
+    sim.clock.speed = 4;
+    for (let i = 0; i < 8000 && sim.tourists.length === 0; i++) sim.tick(1000);
+    const t = sim.tourists[0];
+    sim.directTourist(t.def.id, 'museum');
+    for (let i = 0; i < 600 && t.forcedTarget; i++) sim.tick(1000);
+    expect(t.guidedWell || t.guidedBadly).toBe(true);
+    expect(t.guidedWell).toBe(t.def.wants.includes('history'));
+  });
+
+  it('the odd job pays when done at its place; day pages join the journal', () => {
+    const sim = new IslandSim();
+    sim.treasury = 100;
+    sim.orderRepair('bandstand');
+    sim.clock.speed = 4;
+    for (let i = 0; i < 8000 && !sim.todaysJob; i++) sim.tick(1000);
+    expect(sim.todaysJob).not.toBeNull();
+
+    const before = sim.treasury;
+    const target = placeById(sim.todaysJob!.placeId);
+    sim.mayor.x = target.x;
+    sim.mayor.y = target.y + 1;
+    sim.completeJob();
+    expect(sim.treasury).toBe(before + sim.todaysJob!.reward);
+
+    const chapel = placeById('chapel');
+    sim.mayor.x = chapel.x;
+    sim.mayor.y = chapel.y;
+    sim.examineSpot('chapel');
+    expect(sim.journal.some((p) => p.title.includes('bell'))).toBe(true);
+
+    // The museum keeps its cabinet shut until the museum itself is open.
+    sim.examineSpot('museum-exhibits');
+    expect(sim.journal.some((p) => p.title.includes('omitted'))).toBe(false);
+  });
+});
+
 describe('a day on Gullshead', () => {
   function runUntil(sim: IslandSim, hourF: number, maxTicks = 3000) {
     // Advance in 1-second real ticks at 4x until the clock passes hourF (same day handling by caller).

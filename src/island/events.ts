@@ -84,6 +84,47 @@ export function walkerHaltsAt(): number {
   return 20;
 }
 
+/** What each local can tell the mayor about tonight. Knowledge is uneven. */
+export function forecastFor(localId: string, day: number): string | null {
+  const tonight = eventForNight(day);
+  switch (localId) {
+    case 'captain':
+      return isFoggy(day)
+        ? '“Fog tonight. Thick as chowder. I’d keep people off the beach after dark — but I’m not the mayor, am I.”'
+        : '“Clear night coming. Whatever that’s worth on this island. Usually about half.”';
+    case 'edda':
+      return tonight.kind === 'walker'
+        ? '“Third night tonight, Mayor. The lantern walks. Salt the lane or don’t — but if you don’t, keep your visitors off the north side, or hand them all fresh trousers.”'
+        : '“No lantern tonight — it keeps a calendar better than the Assize. Ask Ferrick about the fog; my knees only forecast rain.”';
+    case 'maren': {
+      if (tonight.kind === 'choir') return '“Fog tonight. They’ll rise at the beach and sing. Ring the bell before nine and they won’t. That’s all. You can stop climbing my stairs now.”';
+      if (tonight.kind === 'walker') return '“The lantern walks tonight. Salt on the north lane turns it back. It is not proud, and neither should you be.”';
+      return '“Nothing rises tonight and nothing walks. Which means one of the houses will cry. It favors the ones nobody has loved lately. Draw your own conclusions about fixing things, Mayor.”';
+    }
+    default:
+      return null;
+  }
+}
+
+/** Daytime places that hold pages, for a mayor who looks closely. */
+export const DAY_PAGES: Record<string, { title: string; text: string; hint: string }> = {
+  'salt-spot': {
+    title: 'The scoured stones',
+    text: 'The stones of the north lane are scoured in a long straight line, chapel to lighthouse, like something has walked the same path so many times it has begun to wear its own road. Some of the old salt is fused into the cracks. Someone used to lay the line every third night, and someone stopped.',
+    hint: 'The lane stones look wrong here.',
+  },
+  chapel: {
+    title: 'The bell that went quiet',
+    text: 'The chapel gave up its roof but kept its bell. The rope is new — newer than anything else on this island — as if someone keeps replacing it, quietly, in hope. Six names are scratched into the bell’s lip, small, like a choir list.',
+    hint: 'The ruin keeps its bell oiled.',
+  },
+  'museum-exhibits': {
+    title: 'The omitted exhibits',
+    text: 'Behind the museum’s presentable cases there is a locked back cabinet labeled NOT FOR SEASON. Inside: a ferry timetable from a year with thirteen months; a photograph of the square in which every window is lit and no door is open; and a visitor’s book where the same six signatures repeat, page after page, in fading ink.',
+    hint: 'The museum’s back cabinet is labeled NOT FOR SEASON.',
+  },
+};
+
 /** Curse journal pages, earned by the mayor witnessing things up close. */
 export const CURSE_PAGES: Record<EventKind, { title: string; text: string }> = {
   choir: {
